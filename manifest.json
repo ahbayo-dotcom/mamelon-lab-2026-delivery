@@ -1,0 +1,18 @@
+{
+  "name": "تطبيق المندوب - Mamelon",
+  "short_name": "المندوب",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#12203D",
+  "theme_color": "#12203D",
+  "orientation": "any",
+  "dir": "rtl",
+  "description": "Mamelon Lab Delivery Tracking App",
+  "icons": [
+    {
+      "src": "./icon.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    }
+  ]
+}

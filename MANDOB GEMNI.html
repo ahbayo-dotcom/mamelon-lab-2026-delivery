@@ -1,0 +1,1450 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#12203D">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Mamelon Lab · تطبيق المندوب</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="manifest" href="manifest.json">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Tajawal:wght@500;700;900&family=Cairo:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <style>
+    :root {
+      --navy: #12203D;
+      --navy-2: #1B2E52;
+      --gold: #C9A227;
+      --gold-2: #E0BC4A;
+      --bg: #F5F6F8;
+      --card: #FFFFFF;
+      --ink: #1A1F29;
+      --ink-soft: #6B7280;
+      --line: #E7E9EE;
+      --green: #1F8A55;
+      --green-bg: #EAF7EF;
+      --red: #C1443C;
+      --red-bg: #FDEEEC;
+      --radius: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      min-height: 100%;
+      width: 100%;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    body {
+      background: var(--bg);
+      font-family: 'Cairo', sans-serif;
+      color: var(--ink);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: linear-gradient(135deg, var(--navy), var(--navy-2));
+      padding: 16px 16px 18px;
+      color: #fff;
+      position: relative;
+      overflow: hidden;
+      width: 100%;
+    }
+
+    header::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 85% -20%, rgba(201, 162, 39, 0.35), transparent 55%);
+    }
+
+    .headrow {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: relative;
+      z-index: 1;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: 'Tajawal', sans-serif;
+      font-weight: 900;
+      font-size: 12px;
+      letter-spacing: .4px;
+      color: var(--gold-2);
+    }
+
+    .brand .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--gold);
+    }
+
+    .logout-btn {
+      background: rgba(255, 255, 255, .12);
+      border: none;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 6px 10px;
+      border-radius: 20px;
+      cursor: pointer;
+    }
+
+    h1 {
+      font-family: 'Tajawal', sans-serif;
+      font-weight: 900;
+      font-size: 20px;
+      margin: 8px 0 2px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .sub {
+      font-size: 12px;
+      color: #B9C4DA;
+      position: relative;
+      z-index: 1;
+    }
+
+    main {
+      flex: 1;
+      padding: 12px 12px 90px;
+      width: 100%;
+      max-width: 480px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .screen {
+      display: none;
+      width: 100%;
+    }
+
+    .screen.show {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      width: 100%;
+      margin-bottom: 4px;
+    }
+
+    .dash-card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 6px;
+      text-align: center;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, .03);
+    }
+
+    .dash-title {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: var(--ink-soft);
+      margin-bottom: 2px;
+    }
+
+    .dash-value {
+      font-family: 'Tajawal', sans-serif;
+      font-size: 20px;
+      font-weight: 900;
+      color: var(--navy);
+    }
+
+    .dash-value.gold {
+      color: var(--gold);
+    }
+
+    .dash-value.green {
+      color: var(--green);
+    }
+
+    .dash-value.red {
+      color: var(--red);
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: 0 1px 3px rgba(18, 32, 61, 0.06);
+      border: 1px solid var(--line);
+      width: 100%;
+    }
+
+    .field-label {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--ink-soft);
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .pin-input {
+      width: 100%;
+      font-family: 'Tajawal', sans-serif;
+      font-size: 28px;
+      font-weight: 900;
+      text-align: center;
+      letter-spacing: 8px;
+      padding: 14px 10px;
+      border-radius: 12px;
+      border: 2px solid var(--line);
+      background: var(--bg);
+      color: var(--navy);
+      direction: ltr;
+      outline: none;
+    }
+
+    .pin-input:focus {
+      border-color: var(--gold);
+    }
+
+    .btn {
+      width: 100%;
+      border: none;
+      border-radius: 12px;
+      padding: 14px;
+      font-family: 'Cairo', sans-serif;
+      font-size: 14.5px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn:active {
+      transform: scale(.98);
+    }
+
+    .btn:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: var(--gold);
+      color: var(--navy);
+    }
+
+    .btn-dark {
+      background: var(--navy);
+      color: #fff;
+    }
+
+    .btn-green {
+      background: var(--green-bg);
+      color: var(--green);
+    }
+
+    .btn-red {
+      background: var(--red-bg);
+      color: var(--red);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--ink-soft);
+      border: 1.5px solid var(--line);
+    }
+
+    .btn-sm {
+      padding: 8px 10px;
+      font-size: 12.5px;
+      border-radius: 8px;
+      width: auto;
+      flex: 1;
+    }
+
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, .4);
+      border-top-color: #fff;
+      animation: spin .7s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .banner {
+      display: none;
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 12.5px;
+      font-weight: 600;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .banner.show {
+      display: flex;
+    }
+
+    .banner.error {
+      background: var(--red-bg);
+      color: var(--red);
+    }
+
+    .tabs {
+      display: flex;
+      gap: 6px;
+      background: var(--card);
+      padding: 4px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      width: 100%;
+    }
+
+    .tab {
+      flex: 1;
+      text-align: center;
+      padding: 10px 4px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 12px;
+      color: var(--ink-soft);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .tab.active {
+      background: var(--navy);
+      color: #fff;
+    }
+
+    .tab .badge {
+      display: inline-block;
+      background: var(--gold);
+      color: var(--navy);
+      font-size: 9px;
+      font-weight: 900;
+      border-radius: 6px;
+      padding: 0px 4px;
+      margin-right: 2px;
+    }
+
+    .search-box {
+      display: flex;
+      gap: 6px;
+      width: 100%;
+      margin-bottom: 10px;
+    }
+
+    .search-input {
+      flex: 1;
+      min-width: 0;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 2px solid var(--line);
+      font-size: 15px;
+      font-weight: 900;
+      text-align: center;
+      outline: none;
+      font-family: 'Tajawal', sans-serif;
+      color: var(--navy);
+      background: var(--card);
+    }
+
+    .search-input:focus {
+      border-color: var(--gold);
+    }
+
+    .search-btn {
+      background: var(--navy);
+      color: #fff;
+      border: none;
+      padding: 0 14px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-family: 'Cairo', sans-serif;
+      cursor: pointer;
+      flex-shrink: 0;
+      font-size: 13px;
+    }
+
+    .scan-btn {
+      background: var(--gold);
+      color: var(--navy);
+      border: none;
+      padding: 0 12px;
+      border-radius: 10px;
+      font-size: 16px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .scanner-container {
+      width: 100% !important;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 2px solid var(--gold);
+      display: none;
+      margin-bottom: 12px;
+      background: #000;
+    }
+
+    .scanner-container video,
+    .scanner-container canvas {
+      width: 100% !important;
+      height: auto !important;
+      object-fit: cover;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 30px 12px;
+      color: var(--ink-soft);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .case-item {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      margin-bottom: 8px;
+      width: 100%;
+      transition: all .2s;
+    }
+
+    .case-item.highlight {
+      border-color: var(--gold);
+      box-shadow: 0 0 10px rgba(201, 162, 39, 0.4);
+    }
+
+    .case-item-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .case-num {
+      font-family: 'Tajawal', sans-serif;
+      font-weight: 900;
+      font-size: 14.5px;
+      color: var(--navy);
+    }
+
+    .case-clinic {
+      font-size: 12px;
+      color: var(--ink-soft);
+      margin-top: 2px;
+    }
+
+    .item-actions-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .remove-case-btn {
+      background: var(--red-bg);
+      color: var(--red);
+      border: none;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 900;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .checkbox {
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      border: 2px solid var(--line);
+      flex-shrink: 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all .15s;
+    }
+
+    .checkbox.checked {
+      background: var(--gold);
+      border-color: var(--gold);
+    }
+
+    .checkbox.checked::after {
+      content: "✓";
+      color: var(--navy);
+      font-weight: 900;
+      font-size: 13px;
+    }
+
+    .checkbox.disabled {
+      opacity: .35;
+      pointer-events: none;
+    }
+
+    .clinic-header {
+      font-size: 12.5px;
+      font-weight: 800;
+      color: var(--navy);
+      background: #FFF9E9;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 6px 10px;
+      margin: 12px 0 6px;
+    }
+
+    .case-products {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 6px;
+    }
+
+    .chip {
+      background: var(--bg);
+      border: 1px solid var(--line);
+      padding: 2px 7px;
+      border-radius: 14px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--navy);
+    }
+
+    .case-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .sticky-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--card);
+      border-top: 1px solid var(--line);
+      padding: 10px 12px;
+      display: none;
+      z-index: 10;
+      box-shadow: 0 -4px 12px rgba(0, 0, 0, .05);
+    }
+
+    .sticky-bar.show {
+      display: block;
+    }
+
+    .sticky-bar-inner {
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    .deliver-form {
+      display: none;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed var(--line);
+    }
+
+    .deliver-form.show {
+      display: block;
+    }
+
+    .product-picker {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 8px;
+    }
+
+    .product-chip {
+      flex: 1;
+      min-width: 60px;
+      text-align: center;
+      padding: 8px 4px;
+      border-radius: 8px;
+      border: 1.5px solid var(--line);
+      background: var(--bg);
+      font-weight: 700;
+      font-size: 11px;
+      color: var(--ink-soft);
+      cursor: pointer;
+    }
+
+    .product-chip.active {
+      border-color: var(--gold);
+      background: #FFF9E9;
+      color: var(--navy);
+    }
+
+    .text-input {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1.5px solid var(--line);
+      background: var(--bg);
+      font-family: 'Cairo', sans-serif;
+      font-size: 13px;
+      color: var(--ink);
+      outline: none;
+      margin-bottom: 8px;
+      resize: none;
+    }
+
+    .text-input:focus {
+      border-color: var(--gold);
+    }
+
+    .return-form {
+      display: none;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed var(--line);
+    }
+
+    .return-form.show {
+      display: block;
+    }
+
+    footer {
+      text-align: center;
+      font-size: 10.5px;
+      color: #9AA3B2;
+      padding: 4px 12px 8px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <div class="headrow">
+      <div class="brand"><span class="dot"></span>MAMELON LAB</div>
+      <button class="logout-btn" id="logoutBtn" style="display:none">تسجيل خروج</button>
+    </div>
+    <h1 id="headerTitle">تطبيق المندوب</h1>
+    <div class="sub" id="headerSub">سجّل دخولك بالـ PIN بتاعك</div>
+  </header>
+
+  <main>
+
+    <div class="screen show" id="loginScreen">
+      <div class="card">
+        <label class="field-label">رقم الـ PIN</label>
+        <input id="pinInput" class="pin-input" type="password" inputmode="numeric" maxlength="4" placeholder="••••">
+        <div style="height:10px"></div>
+        <button class="btn btn-dark" id="loginBtn"><span id="loginBtnText">دخول</span></button>
+        <div class="banner error" id="loginError"></div>
+      </div>
+    </div>
+
+    <div class="screen" id="homeScreen">
+
+      <div class="dashboard-grid">
+        <div class="dash-card">
+          <div class="dash-title">في السلة</div>
+          <div class="dash-value gold" id="dashCart">0</div>
+        </div>
+        <div class="dash-card">
+          <div class="dash-title">تسليم اليوم</div>
+          <div class="dash-value green" id="dashDelivered">0</div>
+        </div>
+        <div class="dash-card">
+          <div class="dash-title">مرجعة</div>
+          <div class="dash-value red" id="dashReturned">0</div>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <div class="tab active" id="tabAvailable">البحث</div>
+        <div class="tab" id="tabCart">سلتي <span class="badge" id="cartCount">0</span></div>
+        <div class="tab" id="tabReturned">مرجعة <span class="badge" id="returnedCount">0</span></div>
+      </div>
+
+      <!-- تبويب البحث -->
+      <div id="availableContainer">
+        <div class="card">
+          <div class="search-box">
+            <input id="searchInput" class="search-input" type="text" placeholder="رقم الحالة" inputmode="numeric">
+            <button class="search-btn" id="searchBtn">دوّر</button>
+            <button class="scan-btn" id="scanBtn">📷</button>
+          </div>
+        </div>
+        <div id="qrReader" class="scanner-container"></div>
+        <div id="availableList">
+          <div class="empty-state">ادخل رقم الحالة أو استخدم الكاميرا لمسح الباركود 📦</div>
+        </div>
+      </div>
+
+      <!-- تبويب السلة -->
+      <div id="cartContainer" style="display:none;">
+        <div class="card">
+          <div class="search-box">
+            <input id="cartSearchInput" class="search-input" type="text" placeholder="بحث في السلة..."
+              inputmode="numeric">
+            <button class="scan-btn" id="cartScanBtn">📷</button>
+          </div>
+        </div>
+        <div id="cartQrReader" class="scanner-container"></div>
+        <div id="cartList"></div>
+      </div>
+
+      <!-- تبويب الحالات المرجعة -->
+      <div id="returnedContainer" style="display:none;">
+        <div id="returnedList"></div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <div class="sticky-bar" id="pickupBar">
+    <div class="sticky-bar-inner">
+      <!-- ✅ اجعلهما عنصرين متجاورين داخل الزر -->
+      <button class="btn btn-primary" id="pickupBtn">
+        <span id="pickupBtnText">📦 خد المحدد للسلة</span>
+        (<span id="selectedCount">0</span>)
+      </button>
+
+    </div>
+  </div>
+
+  <!-- شريط تسليم الدفعة — يظهر فقط لما يُحدَّد صندوق واحد أو أكثر في السلة -->
+  <div class="sticky-bar" id="deliverBatchBar">
+    <div class="sticky-bar-inner">
+      <div style="font-size:11.5px;font-weight:700;color:var(--ink-soft);margin-bottom:6px;">
+        🏥 <span id="batchClinicLabel"></span>
+      </div>
+      <input class="text-input" id="batchRecipientInput" placeholder="اسم المستلم في العيادة *" maxlength="100">
+      <button class="btn btn-primary" id="batchConfirmBtn" disabled>
+        <span id="batchConfirmBtnText">تأكيد تسليم</span> (<span id="batchSelectedCount">0</span>)
+      </button>
+    </div>
+  </div>
+
+  <footer>Mamelon Lab ERP · تطبيق المندوب</footer>
+
+  <script>
+    const SUPABASE_URL = "https://qhhqodxbhhvhkjtzmmsh.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFoaHFvZHhiaGh2aGtqdHptbXNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUyNjQ0MDUsImV4cCI6MjEwMDg0MDQwNX0.HVggdqc7tcz8yUIRiX98qv4ZWMr_VrWPMd7U8EU-94g";
+
+    // ===== إعدادات التليجرام =====
+    const TELEGRAM_BOT_TOKEN = "8721178342:AAEcfnw2rFvEoVCee_kkdONPEjMRT2fAnnU";
+    const TELEGRAM_CHAT_ID = "-5306056456";
+
+    const CASES_URL = `${SUPABASE_URL}/rest/v1/cases`;
+    const DELIVERIES_URL = `${SUPABASE_URL}/rest/v1/deliveries`;
+    const RETURNS_URL = `${SUPABASE_URL}/rest/v1/returns`;
+    const DELEGATES_URL = `${SUPABASE_URL}/rest/v1/delegate_directory`;
+    const headers = { "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": "application/json" };
+
+    const PRODUCTS = ['PMMA', 'ZIRCON', 'EMAX', 'Implant Zircon', 'Night Guard'];
+
+    let currentUser = JSON.parse(localStorage.getItem('mamelon_delegate_user') || 'null');
+    let selectedForPickup = new Set();
+    let fetchedCases = new Map();
+    let scannerInstances = {};
+
+    // ===== تسليم دفعة حالات لنفس العيادة =====
+    // نوع المنتج المختار مسبقاً لكل حالة (وقت الالتقاط، قبل ما تدخل السلة) — تخزين محلي عابر
+    // بانتظار لحظة التسليم الفعلي، مستقل تماماً عن product_type المخزَّن في جدول cases
+    let pendingProducts = JSON.parse(localStorage.getItem('mamelon_pending_products') || '{}');
+    let selectedForDelivery = new Set(); // أرقام حالات محدَّدة للتسليم الجماعي، خاص بتبويب السلة فقط
+    let selectedClinic = null;           // اسم العيادة المقفولة على التحديد الحالي
+
+    function savePendingProduct(caseNumber, product) {
+      pendingProducts[caseNumber] = product;
+      localStorage.setItem('mamelon_pending_products', JSON.stringify(pendingProducts));
+    }
+    function clearPendingProduct(caseNumber) {
+      delete pendingProducts[caseNumber];
+      localStorage.setItem('mamelon_pending_products', JSON.stringify(pendingProducts));
+    }
+
+    const loginScreen = document.getElementById('loginScreen');
+    const homeScreen = document.getElementById('homeScreen');
+    const pinInput = document.getElementById('pinInput');
+    const loginBtn = document.getElementById('loginBtn');
+    const loginBtnText = document.getElementById('loginBtnText');
+    const loginError = document.getElementById('loginError');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const headerTitle = document.getElementById('headerTitle');
+    const headerSub = document.getElementById('headerSub');
+    const tabAvailable = document.getElementById('tabAvailable');
+    const tabCart = document.getElementById('tabCart');
+    const tabReturned = document.getElementById('tabReturned');
+    const availableContainer = document.getElementById('availableContainer');
+    const cartContainer = document.getElementById('cartContainer');
+    const returnedContainer = document.getElementById('returnedContainer');
+    const availableList = document.getElementById('availableList');
+    const cartList = document.getElementById('cartList');
+    const returnedList = document.getElementById('returnedList');
+    const searchInput = document.getElementById('searchInput');
+    const searchBtn = document.getElementById('searchBtn');
+    const scanBtn = document.getElementById('scanBtn');
+    const cartSearchInput = document.getElementById('cartSearchInput');
+    const cartScanBtn = document.getElementById('cartScanBtn');
+    const pickupBar = document.getElementById('pickupBar');
+    const pickupBtn = document.getElementById('pickupBtn');
+    const pickupBtnText = document.getElementById('pickupBtnText');
+    const selectedCountEl = document.getElementById('selectedCount');
+    const cartCountEl = document.getElementById('cartCount');
+    const returnedCountEl = document.getElementById('returnedCount');
+    const dashCart = document.getElementById('dashCart');
+    const dashDelivered = document.getElementById('dashDelivered');
+    const dashReturned = document.getElementById('dashReturned');
+    const deliverBatchBar = document.getElementById('deliverBatchBar');
+    const batchClinicLabelEl = document.getElementById('batchClinicLabel');
+    const batchRecipientInput = document.getElementById('batchRecipientInput');
+    const batchConfirmBtn = document.getElementById('batchConfirmBtn');
+    const batchConfirmBtnText = document.getElementById('batchConfirmBtnText');
+    const batchSelectedCountEl = document.getElementById('batchSelectedCount');
+
+    // ===== دالة إرسال إشعارات التليجرام =====
+    async function sendTelegramNotification(text) {
+      if (!TELEGRAM_BOT_TOKEN || TELEGRAM_BOT_TOKEN.includes("ضع_هنا") || !TELEGRAM_CHAT_ID || TELEGRAM_CHAT_ID.includes("ضع_هنا")) {
+        console.log("لم يتم ضبط إعدادات التليجرام بعد.");
+        return;
+      }
+      try {
+        await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: TELEGRAM_CHAT_ID,
+            text: text,
+            parse_mode: 'HTML'
+          })
+        });
+      } catch (err) {
+        console.error("خطأ في إرسال إشعار التليجرام:", err);
+      }
+    }
+
+    // ===== مسح الباركود =====
+    function startScanner(containerId, callback) {
+      const el = document.getElementById(containerId === 'reader' ? 'qrReader' : 'cartQrReader');
+      if (el.style.display === 'block') { stopAnyScanner(); return; }
+      stopAnyScanner();
+      el.style.display = 'block';
+      const scanner = new Html5Qrcode(el.id);
+      scannerInstances[containerId] = scanner;
+      scanner.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 240, height: 160 } },
+        (decodedText) => { callback(decodedText); stopScanner(containerId); },
+        (error) => { }
+      ).catch(() => {
+        alert("تعذر فتح الكاميرا، تأكد من إعطاء صلاحية الوصول للكاميرا للمتصفح.");
+        el.style.display = 'none';
+      });
+    }
+    function stopScanner(containerId) {
+      const scanner = scannerInstances[containerId];
+      if (scanner && scanner.isScanning) {
+        scanner.stop().then(() => {
+          document.getElementById(containerId === 'reader' ? 'qrReader' : 'cartQrReader').style.display = 'none';
+          delete scannerInstances[containerId];
+        }).catch(() => { });
+      } else {
+        document.getElementById(containerId === 'reader' ? 'qrReader' : 'cartQrReader').style.display = 'none';
+      }
+    }
+    function stopAnyScanner() { Object.keys(scannerInstances).forEach(key => stopScanner(key)); }
+
+    // ===== تسجيل الدخول =====
+    async function login() {
+      const pin = pinInput.value.trim();
+      if (pin.length < 4) { showLoginError("اكتب PIN من 4 أرقام"); return; }
+      loginBtn.disabled = true;
+      loginBtnText.innerHTML = '<span class="spinner"></span>';
+      try {
+        const res = await fetch(`${DELEGATES_URL}?pin_code=eq.${encodeURIComponent(pin)}&select=emp_id,name`, { headers });
+        const rows = await res.json();
+        if (!rows || rows.length === 0) {
+          showLoginError("رقم PIN مش صح");
+          loginBtn.disabled = false; loginBtnText.textContent = 'دخول';
+          return;
+        }
+        currentUser = rows[0];
+        localStorage.setItem('mamelon_delegate_user', JSON.stringify(currentUser));
+        enterHome();
+      } catch (err) {
+        showLoginError("مشكلة في الاتصال، جرب تاني");
+        loginBtn.disabled = false; loginBtnText.textContent = 'دخول';
+      }
+    }
+    function showLoginError(msg) { loginError.textContent = "⚠️ " + msg; loginError.classList.add('show'); }
+
+    function enterHome() {
+      loginScreen.classList.remove('show');
+      homeScreen.classList.add('show');
+      logoutBtn.style.display = 'block';
+      headerTitle.textContent = "أهلاً، " + currentUser.name;
+      headerSub.textContent = "إدارة الطلبات والتسليمات";
+      loadDashboardStats();
+    }
+
+    function logout() {
+      stopAnyScanner();
+      localStorage.removeItem('mamelon_delegate_user');
+      currentUser = null;
+      location.reload();
+    }
+
+    // ===== الداشبورد =====
+    async function loadDashboardStats() {
+      try {
+        const inCartRes = await fetch(`${CASES_URL}?status=eq.out_for_delivery&current_holder=eq.${encodeURIComponent(currentUser.name)}&select=id`, { headers });
+        const inCart = await inCartRes.json();
+        dashCart.textContent = inCart.length || 0;
+        cartCountEl.textContent = inCart.length || 0;
+      } catch (err) { }
+
+      try {
+        const todayStart = new Date().toISOString().split('T')[0] + 'T00:00:00';
+        const deliveredRes = await fetch(`${DELIVERIES_URL}?delegate_name=eq.${encodeURIComponent(currentUser.name)}&delivered_at=gte.${todayStart}&select=id`, { headers });
+        const delivered = await deliveredRes.json();
+        dashDelivered.textContent = delivered.length || 0;
+      } catch (err) { }
+
+      try {
+        const returnedRes = await fetch(`${RETURNS_URL}?delegate_name=eq.${encodeURIComponent(currentUser.name)}&select=id`, { headers });
+        const returned = await returnedRes.json();
+        dashReturned.textContent = returned.length || 0;
+        returnedCountEl.textContent = returned.length || 0;
+      } catch (err) { }
+    }
+
+    // ===== البحث (تبويب استلام حالة) =====
+    async function searchCase() {
+      const val = searchInput.value.trim();
+      if (!val) { alert("اكتب رقم الحالة الأول"); return; }
+      searchBtn.disabled = true;
+      searchBtn.innerHTML = '<span class="spinner dark"></span>';
+      try {
+        const url = `${CASES_URL}?case_number=eq.${encodeURIComponent(val)}&select=id,case_number,clinic_name,patient_name,product_type,current_holder`;
+        const res = await fetch(url, { headers });
+        const rows = await res.json();
+
+        if (!rows || rows.length === 0) {
+          alert(`مفيش حالة برقم "${val}"، تأكد من الرقم`);
+        } else {
+          const grouped = groupByCaseNumber(rows);
+          const c = grouped[0];
+          if (c.current_holder) {
+            if (c.current_holder === currentUser.name) {
+              alert("الحالة دي موجودة في سلتك بالفعل");
+            } else {
+              alert(`الحالة دي حالياً مع المندوب: ${c.current_holder}`);
+            }
+          } else {
+            fetchedCases.set(c.case_number, c);
+            selectedForPickup.add(c.case_number);
+            renderSearchedCases();
+            updatePickupBar();
+            searchInput.value = '';
+          }
+        }
+      } catch (err) {
+        alert("مشكلة في الاتصال، جرب تاني");
+      }
+      searchBtn.disabled = false;
+      searchBtn.textContent = 'دوّر';
+    }
+
+    function groupByCaseNumber(rows) {
+      const map = new Map();
+      rows.forEach(r => {
+        if (!map.has(r.case_number)) map.set(r.case_number, { ...r, products: new Set() });
+        if (r.product_type) map.get(r.case_number).products.add(r.product_type);
+      });
+      return [...map.values()];
+    }
+
+    function renderSearchedCases() {
+      if (fetchedCases.size === 0) {
+        availableList.innerHTML = '<div class="empty-state">ادخل رقم الحالة أو استخدم الكاميرا لمسح الباركود 📦</div>';
+        return;
+      }
+      availableList.innerHTML = '';
+      fetchedCases.forEach(c => {
+        const el = document.createElement('div');
+        el.className = 'case-item';
+        const isChecked = selectedForPickup.has(c.case_number) ? 'checked' : '';
+        el.innerHTML = `
+      <div class="case-item-top">
+        <div>
+          <div class="case-num">${c.case_number}</div>
+          <div class="case-clinic">${c.clinic_name || '—'} · ${c.patient_name || '—'}</div>
+        </div>
+        <div class="item-actions-right">
+          <button class="remove-case-btn" data-case="${c.case_number}">✖</button>
+          <div class="checkbox ${isChecked}" data-case="${c.case_number}"></div>
+        </div>
+      </div>
+      <div class="case-products">${[...c.products].map(p => `<span class="chip">${p}</span>`).join('')}</div>
+      <div class="product-picker" style="margin-top:8px;">${PRODUCTS.map(p => `<div class="product-chip${pendingProducts[c.case_number] === p ? ' active' : ''}" data-product="${p}">${p}</div>`).join('')}</div>
+    `;
+        el.querySelector('.remove-case-btn').addEventListener('click', (e) => {
+          e.stopPropagation();
+          const cn = e.currentTarget.dataset.case;
+          fetchedCases.delete(cn);
+          selectedForPickup.delete(cn);
+          clearPendingProduct(cn);
+          renderSearchedCases();
+          updatePickupBar();
+        });
+        el.querySelector('.checkbox').addEventListener('click', (e) => {
+          const box = e.currentTarget;
+          const cn = box.dataset.case;
+          if (selectedForPickup.has(cn)) { selectedForPickup.delete(cn); box.classList.remove('checked'); }
+          else { selectedForPickup.add(cn); box.classList.add('checked'); }
+          updatePickupBar();
+        });
+        el.querySelectorAll('.product-chip').forEach(chip => {
+          chip.addEventListener('click', () => {
+            el.querySelectorAll('.product-chip').forEach(x => x.classList.remove('active'));
+            chip.classList.add('active');
+            savePendingProduct(c.case_number, chip.dataset.product);
+          });
+        });
+        availableList.prepend(el);
+      });
+    }
+
+    function updatePickupBar() {
+      selectedCountEl.textContent = selectedForPickup.size;
+      pickupBar.classList.toggle('show', selectedForPickup.size > 0);
+    }
+
+    async function confirmPickup() {
+      pickupBtn.disabled = true;
+      pickupBtnText.innerHTML = 'جاري النقل... <span class="spinner dark"></span>';
+      let successCount = 0;
+      for (const caseNumber of selectedForPickup) {
+        try {
+          const url = `${CASES_URL}?case_number=eq.${encodeURIComponent(caseNumber)}&current_holder=is.null`;
+          const res = await fetch(url, {
+            method: 'PATCH',
+            headers: { ...headers, "Prefer": "return=representation" },
+            body: JSON.stringify({ status: 'out_for_delivery', current_holder: currentUser.name, picked_up_at: new Date().toISOString() })
+          });
+          const updated = await res.json();
+          if (updated && updated.length > 0) { successCount++; fetchedCases.delete(caseNumber); }
+        } catch (err) { }
+      }
+      selectedForPickup.clear();
+      updatePickupBar();
+      renderSearchedCases();
+      pickupBtn.disabled = false;
+      pickupBtnText.textContent = `📦 خد المحدد للسلة`;
+      if (successCount > 0) { switchTab('cart'); }
+      else { alert("للأسف كل الحالات المحددة اتاخدت من مندوب تاني قبلك"); }
+      await loadDashboardStats();
+    }
+
+    // ===== سلتي =====
+    async function loadCart() {
+      cartList.innerHTML = '<div class="empty-state">جاري التحميل...</div>';
+      selectedForDelivery.clear();
+      selectedClinic = null;
+      updateBatchToolbar();
+      try {
+        const url = `${CASES_URL}?status=eq.out_for_delivery&current_holder=eq.${encodeURIComponent(currentUser.name)}&select=id,case_number,clinic_name,doctor_name,patient_name,product_type&order=clinic_name.asc,case_number.asc`;
+        const res = await fetch(url, { headers });
+        const rows = await res.json();
+        const grouped = groupByCaseNumber(rows);
+
+        cartCountEl.textContent = grouped.length;
+        if (grouped.length === 0) {
+          cartList.innerHTML = '<div class="empty-state">سلتك فاضية — خد طلبات من تبويب البحث</div>';
+          return;
+        }
+        cartList.innerHTML = '';
+        let lastClinic = null;
+        grouped.forEach(c => {
+          if (c.clinic_name !== lastClinic) {
+            lastClinic = c.clinic_name;
+            const header = document.createElement('div');
+            header.className = 'clinic-header';
+            header.textContent = '🏥 ' + (c.clinic_name || '—');
+            cartList.appendChild(header);
+          }
+
+          const el = document.createElement('div');
+          el.className = 'case-item';
+          el.dataset.casenum = c.case_number;
+          const preselected = pendingProducts[c.case_number] || null;
+          el.innerHTML = `
+        <div class="case-item-top">
+          <div>
+            <div class="case-num">${c.case_number}</div>
+            <div class="case-clinic">${c.clinic_name || '—'} · ${c.doctor_name || '—'}<br>${c.patient_name || '—'}</div>
+          </div>
+          <div class="item-actions-right">
+            <div class="checkbox" data-case="${c.case_number}" data-clinic="${c.clinic_name || ''}"></div>
+          </div>
+        </div>
+        <div class="case-products">${[...c.products].map(p => `<span class="chip">${p}</span>`).join('')}</div>
+        <div class="product-picker" style="margin-top:8px;">${PRODUCTS.map(p => `<div class="product-chip${preselected === p ? ' active' : ''}" data-product="${p}">${p}</div>`).join('')}</div>
+        <div class="case-actions">
+          <button class="btn btn-green btn-sm deliver-open-btn">✅ تسليم</button>
+          <button class="btn btn-red btn-sm return-btn">↩️ رجّع</button>
+        </div>
+        <div class="deliver-form">
+          <input class="text-input recipient-input" placeholder="اسم المستلم في العيادة *" maxlength="100">
+          <button class="btn btn-primary btn-sm confirm-deliver-btn" disabled>تأكيد التسليم</button>
+        </div>
+        <div class="return-form">
+          <textarea class="text-input return-reason-input" placeholder="سبب الإرجاع (اختياري)" maxlength="200" style="min-height:60px;"></textarea>
+          <button class="btn btn-red btn-sm confirm-return-btn">تأكيد الإرجاع</button>
+          <div style="height:6px"></div>
+          <button class="btn btn-ghost btn-sm cancel-return-btn">إلغاء</button>
+        </div>
+      `;
+
+          let product = preselected;
+          const form = el.querySelector('.deliver-form');
+          const confirmBtn = el.querySelector('.confirm-deliver-btn');
+          const recipientInput = el.querySelector('.recipient-input');
+          const returnForm = el.querySelector('.return-form');
+          const returnReasonInput = el.querySelector('.return-reason-input');
+          const confirmReturnBtn = el.querySelector('.confirm-return-btn');
+          const cancelReturnBtn = el.querySelector('.cancel-return-btn');
+          const deliverOpenBtn = el.querySelector('.deliver-open-btn');
+          const checkboxEl = el.querySelector('.checkbox');
+
+          deliverOpenBtn.addEventListener('click', () => {
+            form.classList.toggle('show');
+            returnForm.classList.remove('show');
+          });
+
+          el.querySelectorAll('.product-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+              el.querySelectorAll('.product-chip').forEach(x => x.classList.remove('active'));
+              chip.classList.add('active');
+              product = chip.dataset.product;
+              savePendingProduct(c.case_number, product);
+              checkDeliverEnabled();
+            });
+          });
+          recipientInput.addEventListener('input', checkDeliverEnabled);
+          function checkDeliverEnabled() { confirmBtn.disabled = !(product && recipientInput.value.trim().length > 0); }
+
+          // --- صندوق اختيار الدفعة الجماعية ---
+          checkboxEl.addEventListener('click', () => {
+            const cn = checkboxEl.dataset.case, clinic = checkboxEl.dataset.clinic;
+            if (selectedForDelivery.has(cn)) {
+              selectedForDelivery.delete(cn);
+              checkboxEl.classList.remove('checked');
+              if (selectedForDelivery.size === 0) selectedClinic = null;
+            } else {
+              if (selectedClinic && selectedClinic !== clinic) return;
+              selectedClinic = clinic;
+              selectedForDelivery.add(cn);
+              checkboxEl.classList.add('checked');
+              form.classList.remove('show');
+              returnForm.classList.remove('show');
+            }
+            deliverOpenBtn.disabled = selectedForDelivery.has(cn);
+            applyClinicLock();
+            updateBatchToolbar();
+          });
+
+          // --- تأكيد التسليم مع إرسال إشعار تليجرام ---
+          confirmBtn.addEventListener('click', async () => {
+            confirmBtn.disabled = true;
+            confirmBtn.textContent = '...جاري التسجيل';
+            const recipientName = recipientInput.value.trim();
+            try {
+              await fetch(DELIVERIES_URL, {
+                method: 'POST',
+                headers: { ...headers, "Prefer": "return=minimal" },
+                body: JSON.stringify({ case_number: c.case_number, delivery_stage: product, recipient_name: recipientName, delegate_name: currentUser.name })
+              });
+              await fetch(`${CASES_URL}?case_number=eq.${encodeURIComponent(c.case_number)}`, {
+                method: 'PATCH',
+                headers: { ...headers, "Prefer": "return=minimal" },
+                body: JSON.stringify({ status: 'delivered', current_holder: null, picked_up_at: null })
+              });
+
+              // 📲 إرسال إشعار التسليم للتليجرام
+              const deliverMsg = `📦 <b>تسليم حالة جديد</b>\n\n` +
+                `🔹 <b>رقم الحالة:</b> ${c.case_number}\n` +
+                `🏥 <b>العيادة:</b> ${c.clinic_name || 'غير محدد'}\n` +
+                `👤 <b>الطبيب:</b> ${c.doctor_name || 'غير محدد'}\n` +
+                `👤 <b>المريض:</b> ${c.patient_name || 'غير محدد'}\n` +
+                `🦷 <b>المنتج:</b> ${product}\n` +
+                `🛵 <b>المندوب:</b> ${currentUser.name}\n` +
+                `✍️ <b>المستلم:</b> ${recipientName}`;
+              sendTelegramNotification(deliverMsg);
+
+              clearPendingProduct(c.case_number);
+              await loadCart();
+              await loadDashboardStats();
+            } catch (err) {
+              confirmBtn.disabled = false;
+              confirmBtn.textContent = 'تأكيد التسليم';
+              alert("حصلت مشكلة، جرب تاني");
+            }
+          });
+
+          el.querySelector('.return-btn').addEventListener('click', () => {
+            returnForm.classList.toggle('show');
+            form.classList.remove('show');
+          });
+          cancelReturnBtn.addEventListener('click', () => { returnForm.classList.remove('show'); returnReasonInput.value = ''; });
+
+          // --- تأكيد الإرجاع مع إرسال إشعار تليجرام ---
+          confirmReturnBtn.addEventListener('click', async () => {
+            confirmReturnBtn.disabled = true;
+            confirmReturnBtn.textContent = '...جاري الإرجاع';
+            const reason = returnReasonInput.value.trim();
+            try {
+              await fetch(RETURNS_URL, {
+                method: 'POST',
+                headers: { ...headers, "Prefer": "return=minimal" },
+                body: JSON.stringify({ case_number: c.case_number, delegate_name: currentUser.name, reason: reason || null })
+              });
+              await fetch(`${CASES_URL}?case_number=eq.${encodeURIComponent(c.case_number)}`, {
+                method: 'PATCH',
+                headers: { ...headers, "Prefer": "return=minimal" },
+                body: JSON.stringify({ status: 'ready', current_holder: null, picked_up_at: null })
+              });
+
+              // 📲 إرسال إشعار الإرجاع للتليجرام
+              const returnMsg = `↩️ <b>إرجاع حالة للمعمل</b>\n\n` +
+                `🔹 <b>رقم الحالة:</b> ${c.case_number}\n` +
+                `🏥 <b>العيادة:</b> ${c.clinic_name || 'غير محدد'}\n` +
+                `👤 <b>الطبيب:</b> ${c.doctor_name || 'غير محدد'}\n` +
+                `👤 <b>المريض:</b> ${c.patient_name || 'غير محدد'}\n` +
+                `💬 <b>سبب الإرجاع:</b> ${reason || 'لم يتم ذكر سبب'}\n` +
+                `🛵 <b>المندوب:</b> ${currentUser.name}`;
+              sendTelegramNotification(returnMsg);
+
+              await loadCart();
+              await loadDashboardStats();
+            } catch (err) {
+              confirmReturnBtn.disabled = false;
+              confirmReturnBtn.textContent = 'تأكيد الإرجاع';
+              alert("حصلت مشكلة، جرب تاني");
+            }
+          });
+
+          cartList.appendChild(el);
+        });
+      } catch (err) {
+        cartList.innerHTML = '<div class="empty-state">مشكلة في تحميل السلة</div>';
+      }
+    }
+
+    // ===== تبويب الحالات المرجعة =====
+    async function loadReturned() {
+      returnedList.innerHTML = '<div class="empty-state">جاري التحميل...</div>';
+      try {
+        const url = `${RETURNS_URL}?delegate_name=eq.${encodeURIComponent(currentUser.name)}&order=returned_at.desc&select=case_number,reason,returned_at`;
+        const res = await fetch(url, { headers });
+        const rows = await res.json();
+
+        returnedCountEl.textContent = rows.length;
+        dashReturned.textContent = rows.length;
+
+        if (rows.length === 0) {
+          returnedList.innerHTML = '<div class="empty-state">مفيش حالات مرجعة لسه 👍</div>';
+          return;
+        }
+
+        const caseNumbers = [...new Set(rows.map(r => r.case_number))];
+        let caseInfoMap = {};
+        if (caseNumbers.length > 0) {
+          const infoUrl = `${CASES_URL}?case_number=in.(${caseNumbers.join(',')})&select=case_number,clinic_name,patient_name`;
+          const infoRes = await fetch(infoUrl, { headers });
+          const infoRows = await infoRes.json();
+          infoRows.forEach(r => { caseInfoMap[r.case_number] = r; });
+        }
+
+        returnedList.innerHTML = '';
+        rows.forEach(r => {
+          const info = caseInfoMap[r.case_number] || {};
+          const d = new Date(r.returned_at);
+          const dateStr = d.toLocaleDateString('ar-EG', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' + d.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+          const el = document.createElement('div');
+          el.className = 'case-item';
+          el.innerHTML = `
+        <div class="case-item-top">
+          <div>
+            <div class="case-num">${r.case_number}</div>
+            <div class="case-clinic">${info.clinic_name || '—'} · ${info.patient_name || '—'}</div>
+          </div>
+        </div>
+        <div style="font-size:11.5px; color:var(--ink-soft); margin-top:4px;">🕒 ${dateStr}</div>
+        ${r.reason ? `<div style="font-size:12.5px; color:var(--red); margin-top:6px;">💬 ${r.reason}</div>` : ''}
+      `;
+          returnedList.appendChild(el);
+        });
+      } catch (err) {
+        returnedList.innerHTML = '<div class="empty-state">مشكلة في تحميل المرتجعات</div>';
+      }
+    }
+
+    // ===== التبويبات =====
+    function switchTab(tab) {
+      stopAnyScanner();
+      if (tab === 'available') {
+        tabAvailable.classList.add('active'); tabCart.classList.remove('active'); tabReturned.classList.remove('active');
+        availableContainer.style.display = 'block'; cartContainer.style.display = 'none'; returnedContainer.style.display = 'none';
+        pickupBar.classList.toggle('show', selectedForPickup.size > 0);
+      } else if (tab === 'cart') {
+        tabCart.classList.add('active'); tabAvailable.classList.remove('active'); tabReturned.classList.remove('active');
+        availableContainer.style.display = 'none'; cartContainer.style.display = 'block'; returnedContainer.style.display = 'none';
+        pickupBar.classList.remove('show');
+        loadCart();
+      } else {
+        tabReturned.classList.add('active'); tabAvailable.classList.remove('active'); tabCart.classList.remove('active');
+        availableContainer.style.display = 'none'; cartContainer.style.display = 'none'; returnedContainer.style.display = 'block';
+        pickupBar.classList.remove('show');
+        loadReturned();
+      }
+    }
+
+    tabAvailable.addEventListener('click', () => switchTab('available'));
+    tabCart.addEventListener('click', () => switchTab('cart'));
+    tabReturned.addEventListener('click', () => switchTab('returned'));
+    loginBtn.addEventListener('click', login);
+    pinInput.addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+    logoutBtn.addEventListener('click', logout);
+    pickupBtn.addEventListener('click', confirmPickup);
+
+    searchBtn.addEventListener('click', searchCase);
+    scanBtn.addEventListener('click', () => startScanner('reader', (code) => { searchInput.value = code; searchCase(); }));
+    searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') searchCase(); });
+
+    cartScanBtn.addEventListener('click', () => startScanner('cartReader', (code) => { cartSearchInput.value = code; cartSearchInput.dispatchEvent(new Event('input')); }));
+    cartSearchInput.addEventListener('input', e => {
+      const term = e.target.value.trim();
+      const items = cartList.querySelectorAll('.case-item');
+      items.forEach(item => {
+        if (!term || item.dataset.casenum.includes(term)) {
+          item.style.display = 'block';
+          if (term && item.dataset.casenum === term) {
+            item.classList.add('highlight');
+            item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          } else { item.classList.remove('highlight'); }
+        } else { item.style.display = 'none'; }
+      });
+    });
+
+    // ===== منطق التسليم الجماعي (الدفعة) =====
+    function applyClinicLock() {
+      cartList.querySelectorAll('.checkbox').forEach(box => {
+        const isOther = selectedClinic && box.dataset.clinic !== selectedClinic;
+        box.classList.toggle('disabled', Boolean(isOther));
+      });
+    }
+
+    function checkBatchConfirmEnabled() {
+      batchConfirmBtn.disabled = !(selectedForDelivery.size > 0 && batchRecipientInput.value.trim().length > 0);
+    }
+
+    function updateBatchToolbar() {
+      batchSelectedCountEl.textContent = selectedForDelivery.size;
+      batchClinicLabelEl.textContent = selectedClinic || '';
+      deliverBatchBar.classList.toggle('show', selectedForDelivery.size > 0);
+      checkBatchConfirmEnabled();
+    }
+
+    async function confirmBatchDelivery() {
+      const recipientName = batchRecipientInput.value.trim();
+      const caseNumbers = [...selectedForDelivery];
+      const missing = caseNumbers.filter(cn => !pendingProducts[cn]);
+      if (missing.length > 0) {
+        alert("اختر نوع المنتج لهذه الحالات الأول: " + missing.join(', '));
+        return;
+      }
+      batchConfirmBtn.disabled = true;
+      batchConfirmBtnText.textContent = '...جاري التسجيل';
+      try {
+        await fetch(DELIVERIES_URL, {
+          method: 'POST',
+          headers: { ...headers, "Prefer": "return=minimal" },
+          body: JSON.stringify(caseNumbers.map(cn => ({
+            case_number: cn, delivery_stage: pendingProducts[cn],
+            recipient_name: recipientName, delegate_name: currentUser.name
+          })))
+        });
+        const inList = caseNumbers.map(encodeURIComponent).join(',');
+        await fetch(`${CASES_URL}?case_number=in.(${inList})`, {
+          method: 'PATCH',
+          headers: { ...headers, "Prefer": "return=minimal" },
+          body: JSON.stringify({ status: 'delivered', current_holder: null, picked_up_at: null })
+        });
+
+        const batchMsg = `📦 <b>تسليم دفعة حالات</b>\n\n` +
+          `🏥 <b>العيادة:</b> ${selectedClinic || 'غير محدد'}\n` +
+          `🔹 <b>عدد الحالات:</b> ${caseNumbers.length}\n` +
+          `🔸 <b>الأرقام:</b> ${caseNumbers.join(', ')}\n` +
+          `🛵 <b>المندوب:</b> ${currentUser.name}\n` +
+          `✍️ <b>المستلم:</b> ${recipientName}`;
+        sendTelegramNotification(batchMsg);
+
+        caseNumbers.forEach(clearPendingProduct);
+        selectedForDelivery.clear();
+        selectedClinic = null;
+        batchRecipientInput.value = '';
+        batchConfirmBtnText.textContent = 'تأكيد تسليم';
+        await loadCart();
+        await loadDashboardStats();
+      } catch (err) {
+        batchConfirmBtn.disabled = false;
+        batchConfirmBtnText.textContent = 'تأكيد تسليم';
+        alert("حصلت مشكلة، جرب تاني");
+      }
+    }
+
+    batchRecipientInput.addEventListener('input', checkBatchConfirmEnabled);
+    batchConfirmBtn.addEventListener('click', confirmBatchDelivery);
+
+    if (currentUser) { enterHome(); }
+  </script>
+</body>
+
+</html>
