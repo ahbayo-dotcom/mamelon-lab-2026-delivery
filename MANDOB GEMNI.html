@@ -767,14 +767,24 @@
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFoaHFvZHhiaGh2aGtqdHptbXNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUyNjQ0MDUsImV4cCI6MjEwMDg0MDQwNX0.HVggdqc7tcz8yUIRiX98qv4ZWMr_VrWPMd7U8EU-94g";
 
     // ===== إعدادات التليجرام =====
-    const TELEGRAM_BOT_TOKEN = "8721178342:AAEcfnw2rFvEoVCee_kkdONPEjMRT2fAnnU";
-    const TELEGRAM_CHAT_ID = "-5306056456";
+    // ⚠️ لا تكتب توكن بوت تليجرام هنا مباشرة — هذا كود عميل يُقرأ من أي متصفح يفتح "عرض المصدر".
+    // التوكن الآن محفوظ فقط كمتغيّر بيئة سرّي على دالة Supabase Edge Function (telegram-notify)،
+    // والعميل يستدعيها بدل تليجرام مباشرة. راجع ADR-C03 في docs/10_DECISIONS.md.
+    const TELEGRAM_NOTIFY_URL = `${SUPABASE_URL}/functions/v1/telegram-notify`;
 
     const CASES_URL = `${SUPABASE_URL}/rest/v1/cases`;
     const DELIVERIES_URL = `${SUPABASE_URL}/rest/v1/deliveries`;
     const RETURNS_URL = `${SUPABASE_URL}/rest/v1/returns`;
     const DELEGATES_URL = `${SUPABASE_URL}/rest/v1/delegate_directory`;
     const headers = { "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": "application/json" };
+
+    // تطهير أي نص قادم من قاعدة البيانات قبل حقنه في innerHTML — يمنع ثغرة XSS مخزَّنة
+    // (لو حوى اسم عيادة/طبيب/مريض/سبب إرجاع وسم HTML بالخطأ أو بقصد، ما يُنفَّذ كوسم حقيقي)
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str ?? '';
+      return div.innerHTML;
+    }
 
     const PRODUCTS = ['PMMA', 'ZIRCON', 'EMAX', 'Implant Zircon', 'Night Guard'];
 
@@ -840,19 +850,15 @@
 
     // ===== دالة إرسال إشعارات التليجرام =====
     async function sendTelegramNotification(text) {
-      if (!TELEGRAM_BOT_TOKEN || TELEGRAM_BOT_TOKEN.includes("ضع_هنا") || !TELEGRAM_CHAT_ID || TELEGRAM_CHAT_ID.includes("ضع_هنا")) {
-        console.log("لم يتم ضبط إعدادات التليجرام بعد.");
-        return;
-      }
       try {
-        await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+        await fetch(TELEGRAM_NOTIFY_URL, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: TELEGRAM_CHAT_ID,
-            text: text,
-            parse_mode: 'HTML'
-          })
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+          },
+          body: JSON.stringify({ text })
         });
       } catch (err) {
         console.error("خطأ في إرسال إشعار التليجرام:", err);
@@ -1013,16 +1019,16 @@
         el.innerHTML = `
       <div class="case-item-top">
         <div>
-          <div class="case-num">${c.case_number}</div>
-          <div class="case-clinic">${c.clinic_name || '—'} · ${c.patient_name || '—'}</div>
+          <div class="case-num">${escapeHtml(c.case_number)}</div>
+          <div class="case-clinic">${escapeHtml(c.clinic_name || '—')} · ${escapeHtml(c.patient_name || '—')}</div>
         </div>
         <div class="item-actions-right">
-          <button class="remove-case-btn" data-case="${c.case_number}">✖</button>
-          <div class="checkbox ${isChecked}" data-case="${c.case_number}"></div>
+          <button class="remove-case-btn" data-case="${escapeHtml(c.case_number)}">✖</button>
+          <div class="checkbox ${isChecked}" data-case="${escapeHtml(c.case_number)}"></div>
         </div>
       </div>
-      <div class="case-products">${[...c.products].map(p => `<span class="chip">${p}</span>`).join('')}</div>
-      <div class="product-picker" style="margin-top:8px;">${PRODUCTS.map(p => `<div class="product-chip${pendingProducts[c.case_number] === p ? ' active' : ''}" data-product="${p}">${p}</div>`).join('')}</div>
+      <div class="case-products">${[...c.products].map(p => `<span class="chip">${escapeHtml(p)}</span>`).join('')}</div>
+      <div class="product-picker" style="margin-top:8px;">${PRODUCTS.map(p => `<div class="product-chip${pendingProducts[c.case_number] === p ? ' active' : ''}" data-product="${escapeHtml(p)}">${escapeHtml(p)}</div>`).join('')}</div>
     `;
         el.querySelector('.remove-case-btn').addEventListener('click', (e) => {
           e.stopPropagation();
@@ -1117,15 +1123,15 @@
           el.innerHTML = `
         <div class="case-item-top">
           <div>
-            <div class="case-num">${c.case_number}</div>
-            <div class="case-clinic">${c.clinic_name || '—'} · ${c.doctor_name || '—'}<br>${c.patient_name || '—'}</div>
+            <div class="case-num">${escapeHtml(c.case_number)}</div>
+            <div class="case-clinic">${escapeHtml(c.clinic_name || '—')} · ${escapeHtml(c.doctor_name || '—')}<br>${escapeHtml(c.patient_name || '—')}</div>
           </div>
           <div class="item-actions-right">
-            <div class="checkbox" data-case="${c.case_number}" data-clinic="${c.clinic_name || ''}"></div>
+            <div class="checkbox" data-case="${escapeHtml(c.case_number)}" data-clinic="${escapeHtml(c.clinic_name || '')}"></div>
           </div>
         </div>
-        <div class="case-products">${[...c.products].map(p => `<span class="chip">${p}</span>`).join('')}</div>
-        <div class="product-picker" style="margin-top:8px;">${PRODUCTS.map(p => `<div class="product-chip${preselected === p ? ' active' : ''}" data-product="${p}">${p}</div>`).join('')}</div>
+        <div class="case-products">${[...c.products].map(p => `<span class="chip">${escapeHtml(p)}</span>`).join('')}</div>
+        <div class="product-picker" style="margin-top:8px;">${PRODUCTS.map(p => `<div class="product-chip${preselected === p ? ' active' : ''}" data-product="${escapeHtml(p)}">${escapeHtml(p)}</div>`).join('')}</div>
         <div class="case-actions">
           <button class="btn btn-green btn-sm deliver-open-btn">✅ تسليم</button>
           <button class="btn btn-red btn-sm return-btn">↩️ رجّع</button>
@@ -1312,12 +1318,12 @@
           el.innerHTML = `
         <div class="case-item-top">
           <div>
-            <div class="case-num">${r.case_number}</div>
-            <div class="case-clinic">${info.clinic_name || '—'} · ${info.patient_name || '—'}</div>
+            <div class="case-num">${escapeHtml(r.case_number)}</div>
+            <div class="case-clinic">${escapeHtml(info.clinic_name || '—')} · ${escapeHtml(info.patient_name || '—')}</div>
           </div>
         </div>
-        <div style="font-size:11.5px; color:var(--ink-soft); margin-top:4px;">🕒 ${dateStr}</div>
-        ${r.reason ? `<div style="font-size:12.5px; color:var(--red); margin-top:6px;">💬 ${r.reason}</div>` : ''}
+        <div style="font-size:11.5px; color:var(--ink-soft); margin-top:4px;">🕒 ${escapeHtml(dateStr)}</div>
+        ${r.reason ? `<div style="font-size:12.5px; color:var(--red); margin-top:6px;">💬 ${escapeHtml(r.reason)}</div>` : ''}
       `;
           returnedList.appendChild(el);
         });

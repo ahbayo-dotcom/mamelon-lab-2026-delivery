@@ -26,7 +26,7 @@ Also in this folder: `manifest.json` (PWA manifest), `icon.jpg` (app icon).
 - **Database:** Supabase project `qhhqodxbhhvhkjtzmmsh` — the *same* project used by `mamelon-erp`. Any change to `cases`/`deliveries`/`returns` from either app is immediately visible to the other (no manual sync).
 - **Tables used:** `cases` (read/update `status`, `current_holder`, `picked_up_at`), `deliveries` (insert on delivery), `returns` (insert on return), `delegate_directory` (a view, read-only, used for PIN auth).
 - **Auth:** 4-digit PIN matched directly against `delegate_directory`, stored client-side in `localStorage` (`mamelon_delegate_user`) — UI-level only, not real Supabase Auth. Same trust model as `mamelon-erp`.
-- **Notifications:** Telegram bot sends a message to one fixed group chat on every delivery/return, via a direct client-side `fetch` to `api.telegram.org`. See Known Issues below — the bot token is exposed in client-side source.
+- **Notifications:** Telegram bot sends a message to one fixed group chat on every delivery/return. As of 25 Aug 2026 (ADR-C03) this goes through a Supabase Edge Function (`telegram-notify`) instead of calling `api.telegram.org` directly from the client — the bot token lives server-side only, as a Supabase secret. See `docs/06_API.md`.
 - **QR/barcode scanning:** `html5-qrcode` library, loaded from `unpkg.com` CDN.
 
 ## Business Rules (confirmed directly by the user — do not re-litigate as bugs)
@@ -38,8 +38,8 @@ Also in this folder: `manifest.json` (PWA manifest), `icon.jpg` (app icon).
 
 ## Known Issues (documented, not scheduled — do not silently fix without asking)
 
-1. **🔴 Telegram bot token exposed in client-side source** (`TELEGRAM_BOT_TOKEN` constant, readable via view-source by anyone). Recommended eventual fix: rotate the token periodically and/or move the Telegram call behind a Supabase Edge Function so the token never ships to the client. Not yet actioned — needs an explicit user decision.
-2. **🟡 Stored XSS risk, no output escaping.** Every `el.innerHTML = \`...${var}...\`` template (in `renderSearchedCases()`, the cart-rendering code inside `loadCart()`, and `loadReturned()`) injects DB-sourced strings (`clinic_name`, `patient_name`, `case_number`, `doctor_name`, `reason`) as raw HTML with no escaping. Low real-world likelihood (requires a malicious/malformed value entered from `mamelon-erp`'s own trusted internal staff), but a real vulnerability. Fix is a small `escapeHtml()` helper — not yet implemented, pending user decision on priority.
+1. **✅ Telegram bot token exposure — fixed 25 Aug 2026 (ADR-C03).** The token no longer ships to the client at all; `sendTelegramNotification()` now calls a Supabase Edge Function (`telegram-notify`) which holds `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` as server-side secrets. **Operational step still pending (not a vulnerability, just setup):** the user must set those two secrets via the Supabase dashboard or CLI before notifications actually go out — until then the function returns `{"error":"Server not configured"}` and delivery/return confirmations still succeed, just silently without a Telegram ping.
+2. **✅ Stored XSS — fixed and verified 25 Aug 2026 (ADR-C04).** An `escapeHtml()` helper is now applied to every DB-sourced value injected via `innerHTML` in `renderSearchedCases()`, the cart-rendering code inside `loadCart()`, and `loadReturned()` — including values used as HTML attributes (`data-case`, `data-product`, etc.), not just visible text. Verified live against production with an actual `<script>`/`<img onerror>` payload — rendered as literal text, no code execution.
 3. **🟢 No offline support** (no IndexedDB queue, no Service Worker) — unlike `mamelon-erp` which has one (ADR-010/011 there). Possibly acceptable by design since live connectivity is needed anyway to safely check `current_holder=is.null` and avoid two couriers claiming the same case. Informational only — no action requested.
 
 ## Standing Rules
