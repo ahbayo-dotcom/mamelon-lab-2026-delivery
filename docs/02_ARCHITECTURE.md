@@ -3,15 +3,15 @@
 ## الـ Stack
 | الطبقة | التقنية | ملاحظات |
 | :--- | :--- | :--- |
-| الواجهة | HTML + CSS + JavaScript خام (بلا إطار عمل) | ملف واحد `MANDOB GEMNI.html` |
+| الواجهة | HTML + CSS + JavaScript خام (بلا إطار عمل) | ملف واحد `index.html` |
 | الباركود/QR | `html5-qrcode` (عبر CDN `unpkg.com`) | مسح كاميرا الهاتف مباشرة |
 | قاعدة البيانات | Supabase (REST/PostgREST مباشرة عبر `fetch`) | **نفس مشروع `mamelon-erp`** — `qhhqodxbhhvhkjtzmmsh` |
-| الإشعارات | بوت تليجرام (نداء `fetch` مباشر لـ `api.telegram.org`) | ⚠️ التوكن مكشوف بالكود، راجع `06_API.md` |
+| الإشعارات | بوت تليجرام عبر Supabase Edge Function (`telegram-notify`) | ✅ التوكن محمي خلف الخادم منذ 25 أغسطس 2026، راجع `06_API.md`/ADR-C03 |
 | التغليف | PWA → APK عبر خدمة تحويل خارجية | مثبَّت فعلياً على أجهزة المندوبين |
 
 ## البنية داخل الملف الواحد
 ```
-MANDOB GEMNI.html
+index.html
 ├── <style>          (~1-640)   كل CSS، متغيرات الألوان navy/gold
 ├── <body>           (~640-765) شاشة الدخول + الشاشة الرئيسية (3 تبويبات) + أشرطة سفلية ثابتة
 └── <script>         (~765-نهاية) كل منطق التطبيق

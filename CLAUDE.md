@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Mamelon Lab Courier (تطبيق المندوب)** — a single-file PWA used by delivery couriers (مندوبين) of a dental lab to pick up, deliver, and return case work-orders. It shares its Supabase database with the separate `mamelon-erp` project (the lab's desktop ERP) but is otherwise a fully independent codebase — **do not merge code between the two projects.**
 
-There is no build step, no framework, and no package manager: `MANDOB GEMNI.html` is the entire application (HTML + CSS + vanilla JS in one file), designed to be installed directly on courier phones (wrapped as an APK via a PWA→APK conversion service) or opened as a PWA.
+There is no build step, no framework, and no package manager: `index.html` is the entire application (HTML + CSS + vanilla JS in one file), designed to be installed directly on courier phones (wrapped as an APK via a PWA→APK conversion service) or opened as a PWA.
 
 ## Commands
 
@@ -14,7 +14,7 @@ None. There is no build/lint/test tooling in this project — it's a static HTML
 
 ## Architecture
 
-Single file: `MANDOB GEMNI.html` (~1,470 lines as of 25 Aug 2026). Structure:
+Single file: `index.html` (~1,470 lines as of 25 Aug 2026). Structure:
 - Inline `<style>` block (~lines 1-640): all CSS, custom properties for the navy/gold brand palette.
 - Inline HTML body (~640-765): login screen, home screen (3 tabs: البحث/سلتي/مرجعة), sticky bars.
 - Single `<script>` block (~765-end): all app logic, talks directly to Supabase's REST API (PostgREST) via `fetch` — no SDK, no backend of its own.
