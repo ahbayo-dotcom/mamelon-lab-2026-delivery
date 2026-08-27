@@ -425,6 +425,68 @@
       object-fit: cover;
     }
 
+    /* شريط وضع المسح المتتالي — عدّاد + زر إنهاء في متناول الإبهام */
+    .scan-mode-bar {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      background: var(--navy);
+      color: #fff;
+      border-radius: 10px;
+      padding: 8px 10px;
+      margin-bottom: 10px;
+      font-size: 12.5px;
+      font-weight: 700;
+    }
+
+    .scan-mode-bar.show {
+      display: flex;
+    }
+
+    .scan-mode-bar .btn-sm {
+      flex: 0 0 auto;
+    }
+
+    /* إشعار غير معطِّل — بديل alert() الذي يوقف تدفق المسح المتتالي */
+    .scan-toast {
+      position: fixed;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-16px);
+      max-width: 92%;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      background: var(--navy);
+      box-shadow: 0 6px 18px rgba(0, 0, 0, .25);
+      z-index: 50;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .18s, transform .18s;
+      text-align: center;
+    }
+
+    .scan-toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .scan-toast.ok {
+      background: var(--green);
+    }
+
+    .scan-toast.warn {
+      background: var(--gold);
+      color: var(--navy);
+    }
+
+    .scan-toast.bad {
+      background: var(--red);
+    }
+
     .empty-state {
       text-align: center;
       padding: 30px 12px;
@@ -709,6 +771,10 @@
           </div>
         </div>
         <div id="qrReader" class="scanner-container"></div>
+        <div class="scan-mode-bar" id="scanModeBar">
+          <span>📷 مسح متتالي — تم: <b id="scanCount">0</b></span>
+          <button class="btn btn-primary btn-sm" id="scanDoneBtn">تم ✓</button>
+        </div>
         <div id="availableList">
           <div class="empty-state">ادخل رقم الحالة أو استخدم الكاميرا لمسح الباركود 📦</div>
         </div>
@@ -760,6 +826,8 @@
     </div>
   </div>
 
+  <div class="scan-toast" id="scanToast"></div>
+
   <footer>Mamelon Lab ERP · تطبيق المندوب</footer>
 
   <script>
@@ -777,6 +845,24 @@
     const RETURNS_URL = `${SUPABASE_URL}/rest/v1/returns`;
     const DELEGATES_URL = `${SUPABASE_URL}/rest/v1/delegate_directory`;
     const headers = { "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": "application/json" };
+
+    // كل قراءات الحالة الحيّة تمر من هنا بـ cache:'no-store'. السبب: WebView قد يطبّق
+    // كاش heuristic على استجابات GET لو ما بعت السيرفر ترويسة Cache-Control صريحة،
+    // فيعرض المندوب سلة/بحثاً قديمين بعد التقاط أو تسليم تم فعلاً على السيرفر.
+    function getJson(url) {
+      return fetch(url, { headers, cache: 'no-store' });
+    }
+
+    // بناء قائمة فلتر PostgREST من نوع in.(...) بشكل آمن.
+    // encodeURIComponent وحده لا يكفي: هو لا يُرمّز الأقواس إطلاقاً ( !'()* تبقى كما هي )،
+    // فقيمة تحوي ")" كانت تُغلق قائمة الفلتر مبكراً وتُنتج خطأ 400 يُبتلَع في catch.
+    // الحل الذي يوصي به PostgREST: إحاطة كل قيمة بعلامتَي اقتباس مزدوجتين — عندها
+    // تُعامَل الفواصل والأقواس بداخلها كنص عادي. مع تهريب أي \ أو " داخل القيمة نفسها.
+    function inFilterList(values) {
+      return values
+        .map(v => `"${encodeURIComponent(String(v).replace(/\\/g, '\\\\').replace(/"/g, '\\"'))}"`)
+        .join(',');
+    }
 
     // تطهير أي نص قادم من قاعدة البيانات قبل حقنه في innerHTML — يمنع ثغرة XSS مخزَّنة
     // (لو حوى اسم عيادة/طبيب/مريض/سبب إرجاع وسم HTML بالخطأ أو بقصد، ما يُنفَّذ كوسم حقيقي)
@@ -847,6 +933,10 @@
     const batchConfirmBtn = document.getElementById('batchConfirmBtn');
     const batchConfirmBtnText = document.getElementById('batchConfirmBtnText');
     const batchSelectedCountEl = document.getElementById('batchSelectedCount');
+    const scanModeBar = document.getElementById('scanModeBar');
+    const scanCountEl = document.getElementById('scanCount');
+    const scanDoneBtn = document.getElementById('scanDoneBtn');
+    const scanToast = document.getElementById('scanToast');
 
     // ===== دالة إرسال إشعارات التليجرام =====
     async function sendTelegramNotification(text) {
@@ -866,35 +956,152 @@
     }
 
     // ===== مسح الباركود =====
-    function startScanner(containerId, callback) {
-      const el = document.getElementById(containerId === 'reader' ? 'qrReader' : 'cartQrReader');
-      if (el.style.display === 'block') { stopAnyScanner(); return; }
-      stopAnyScanner();
+    function scannerElement(containerId) {
+      return document.getElementById(containerId === 'reader' ? 'qrReader' : 'cartQrReader');
+    }
+
+    // شبكة أمان لتحرير الكاميرا: html5-qrcode يوقف مسارات الفيديو داخلياً عند نجاح
+    // stop() فقط. لو رُفض الوعد تفضل الكاميرا مفتوحة فعلياً، فنوقف المسارات يدوياً
+    // — وإلا يفضل مؤشر الكاميرا شغّالاً وتُستهلك البطارية بلا أي وسيلة لإيقافه.
+    function releaseVideoTracks(el) {
+      el.querySelectorAll('video').forEach(v => {
+        const stream = v.srcObject;
+        if (stream && typeof stream.getTracks === 'function') {
+          stream.getTracks().forEach(t => { try { t.stop(); } catch (e) { } });
+        }
+        v.srcObject = null;
+      });
+    }
+
+    // ===== وضع المسح المتتالي =====
+    // الكاميرا تفضل مفتوحة لمسح علبة ورا التانية بدل فتحها وقفلها لكل علبة.
+    let scanSessionCount = 0;
+    let scanBusy = false;                       // نداء بحث جارٍ الآن
+    let lastScan = { code: null, at: 0 };       // آخر باركود اتقرأ ووقته
+    const SCAN_COOLDOWN_MS = 2500;
+
+    let toastTimer = null;
+    function showScanToast(text, tone) {
+      scanToast.textContent = text;
+      scanToast.className = 'scan-toast show' + (tone ? ' ' + tone : '');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { scanToast.classList.remove('show'); }, 1900);
+    }
+
+    // تأكيد لمسي: المندوب ماسك العلبة وعينه عليها لا على الشاشة، فمن غير اهتزاز
+    // ما يعرفش إن المسح اتسجّل أصلاً — وده أهم عنصر يخلي المسح المتتالي عملياً.
+    function scanVibrate(ok) {
+      try { if (navigator.vibrate) navigator.vibrate(ok ? 60 : [40, 60, 40]); } catch (e) { }
+    }
+
+    function showScanModeBar() {
+      scanSessionCount = 0;
+      scanCountEl.textContent = '0';
+      scanModeBar.classList.add('show');
+    }
+    function hideScanModeBar() {
+      scanModeBar.classList.remove('show');
+      scanBusy = false;
+      lastScan = { code: null, at: 0 };
+    }
+
+    async function handleContinuousScan(code) {
+      const now = Date.now();
+      // html5-qrcode ينادي الـ callback ~10 مرات/ثانية طول ما الباركود في المشهد.
+      // بدون هذين الحارسين تتكرر نفس العلبة عشرات المرات ويُغرَق السيرفر بطلبات
+      // متطابقة — الحارس الأول يمنع التداخل أثناء نداء جارٍ، والثاني يمنع إعادة
+      // قراءة نفس الكود قبل مرور فترة تهدئة.
+      if (scanBusy) return;
+      if (code === lastScan.code && now - lastScan.at < SCAN_COOLDOWN_MS) return;
+      lastScan = { code, at: now };
+      scanBusy = true;
+      try {
+        const r = await lookupAndStageCase(code);
+        if (r.status === 'added') {
+          scanSessionCount++;
+          scanCountEl.textContent = scanSessionCount;
+          showScanToast(`✅ ${code} — اتضافت`, 'ok');
+          scanVibrate(true);
+        } else if (r.status === 'already_staged') {
+          showScanToast(`ℹ️ ${code} — متضافة قبل كده`, 'warn');
+        } else if (r.status === 'already_mine') {
+          showScanToast(`⚠️ ${code} — في سلتك بالفعل`, 'warn');
+          scanVibrate(false);
+        } else if (r.status === 'held_by_other') {
+          showScanToast(`🚫 ${code} — مع المندوب ${r.holder}`, 'bad');
+          scanVibrate(false);
+        } else {
+          showScanToast(`❌ مفيش حالة برقم ${code}`, 'bad');
+          scanVibrate(false);
+        }
+      } catch (e) {
+        showScanToast('⚠️ مشكلة في الاتصال', 'bad');
+        scanVibrate(false);
+      } finally {
+        scanBusy = false;
+      }
+    }
+
+    async function startScanner(containerId, callback, options = {}) {
+      const continuous = options.continuous === true;
+      const el = scannerElement(containerId);
+      if (el.style.display === 'block') { await stopAnyScanner(); return; }
+      // انتظار الإغلاق الفعلي لأي ماسح سابق قبل فتح كاميرا جديدة. بدون await كانت
+      // الكاميرا الجديدة تُفتح والقديمة لسه بتتقفل، فيشتغل ستريمان معاً لوهلة —
+      // ومع تكرار المسح في نفس الجلسة يتراكم الاستهلاك ويظهر كتجمّد تدريجي.
+      await stopAnyScanner();
       el.style.display = 'block';
+      if (continuous) showScanModeBar();
       const scanner = new Html5Qrcode(el.id);
       scannerInstances[containerId] = scanner;
       scanner.start(
         { facingMode: "environment" },
         { fps: 10, qrbox: { width: 240, height: 160 } },
-        (decodedText) => { callback(decodedText); stopScanner(containerId); },
+        // في الوضع المتتالي الكاميرا تفضل شغّالة بعد كل قراءة، والإغلاق يدوي
+        // (زر "تم" أو زر الكاميرا) — الحارسان جوه handleContinuousScan يمنعا التكرار.
+        (decodedText) => {
+          callback(decodedText);
+          if (!continuous) stopScanner(containerId);
+        },
         (error) => { }
       ).catch(() => {
         alert("تعذر فتح الكاميرا، تأكد من إعطاء صلاحية الوصول للكاميرا للمتصفح.");
+        // لازم يُشال من السجل هنا كمان: ماسح فشل بدؤه يفضل مسجَّلاً بلا نشاط،
+        // فيضيع handle بتاعه لما يكتب startScanner التالي فوقه.
+        delete scannerInstances[containerId];
+        releaseVideoTracks(el);
         el.style.display = 'none';
       });
     }
+
     function stopScanner(containerId) {
+      const el = scannerElement(containerId);
       const scanner = scannerInstances[containerId];
+      // الحذف من السجل يقع في كل المسارات (نجاح الإيقاف، فشله، أو ماسح غير نشط):
+      // startScanner يكتب فوق scannerInstances[containerId] دائماً، فأي إدخال قديم
+      // متروك يضيع handle كاميرته للأبد وتفضل شغّالة تحت كاميرا جديدة فوقها.
+      delete scannerInstances[containerId];
+      const finish = () => { releaseVideoTracks(el); el.style.display = 'none'; hideScanModeBar(); };
       if (scanner && scanner.isScanning) {
-        scanner.stop().then(() => {
-          document.getElementById(containerId === 'reader' ? 'qrReader' : 'cartQrReader').style.display = 'none';
-          delete scannerInstances[containerId];
-        }).catch(() => { });
-      } else {
-        document.getElementById(containerId === 'reader' ? 'qrReader' : 'cartQrReader').style.display = 'none';
+        return scanner.stop().catch(() => { }).then(finish);
       }
+      finish();
+      return Promise.resolve();
     }
-    function stopAnyScanner() { Object.keys(scannerInstances).forEach(key => stopScanner(key)); }
+
+    // يرجّع وعداً يكتمل بعد إغلاق كل الماسحات فعلياً — لازم لانتظاره في startScanner
+    function stopAnyScanner() {
+      return Promise.all(Object.keys(scannerInstances).map(key => stopScanner(key)));
+    }
+
+    // إغلاق الكاميرا عند تصغير التطبيق أو مغادرة الصفحة (بما فيه زر «رجوع» بالأندرويد).
+    // بدون هذا كانت الكاميرا تفضل شغّالة في الخلفية — وهو الظرف الذي يسحب فيه النظام
+    // مورد الكاميرا من التطبيق، فيفشل scanner.stop() عند العودة. وفشل stop() هو نفسه
+    // الشرط الذي كان يترك صندوق الماسح عالقاً ويُميت زر الكاميرا نهائياً.
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') stopAnyScanner();
+    });
+    window.addEventListener('pagehide', () => { stopAnyScanner(); });
 
     // ===== تسجيل الدخول =====
     async function login() {
@@ -903,7 +1110,7 @@
       loginBtn.disabled = true;
       loginBtnText.innerHTML = '<span class="spinner"></span>';
       try {
-        const res = await fetch(`${DELEGATES_URL}?pin_code=eq.${encodeURIComponent(pin)}&select=emp_id,name`, { headers });
+        const res = await getJson(`${DELEGATES_URL}?pin_code=eq.${encodeURIComponent(pin)}&select=emp_id,name`);
         const rows = await res.json();
         if (!rows || rows.length === 0) {
           showLoginError("رقم PIN مش صح");
@@ -939,7 +1146,7 @@
     // ===== الداشبورد =====
     async function loadDashboardStats() {
       try {
-        const inCartRes = await fetch(`${CASES_URL}?status=eq.out_for_delivery&current_holder=eq.${encodeURIComponent(currentUser.name)}&select=id`, { headers });
+        const inCartRes = await getJson(`${CASES_URL}?status=eq.out_for_delivery&current_holder=eq.${encodeURIComponent(currentUser.name)}&select=id`);
         const inCart = await inCartRes.json();
         dashCart.textContent = inCart.length || 0;
         cartCountEl.textContent = inCart.length || 0;
@@ -947,13 +1154,13 @@
 
       try {
         const todayStart = new Date().toISOString().split('T')[0] + 'T00:00:00';
-        const deliveredRes = await fetch(`${DELIVERIES_URL}?delegate_name=eq.${encodeURIComponent(currentUser.name)}&delivered_at=gte.${todayStart}&select=id`, { headers });
+        const deliveredRes = await getJson(`${DELIVERIES_URL}?delegate_name=eq.${encodeURIComponent(currentUser.name)}&delivered_at=gte.${todayStart}&select=id`);
         const delivered = await deliveredRes.json();
         dashDelivered.textContent = delivered.length || 0;
       } catch (err) { }
 
       try {
-        const returnedRes = await fetch(`${RETURNS_URL}?delegate_name=eq.${encodeURIComponent(currentUser.name)}&select=id`, { headers });
+        const returnedRes = await getJson(`${RETURNS_URL}?delegate_name=eq.${encodeURIComponent(currentUser.name)}&select=id`);
         const returned = await returnedRes.json();
         dashReturned.textContent = returned.length || 0;
         returnedCountEl.textContent = returned.length || 0;
@@ -961,35 +1168,39 @@
     }
 
     // ===== البحث (تبويب استلام حالة) =====
+    // نواة البحث المشتركة: تبحث عن الحالة وتضيفها لقائمة الالتقاط، وترجّع نتيجة
+    // موصوفة بدل ما تعرض تنبيهاً بنفسها. السبب: المسح المتتالي لا يحتمل alert()
+    // لأنه يوقف الكاميرا ويعطّل التدفق، فيحتاج يعرض إشعاراً غير معطِّل بدلاً منه.
+    async function lookupAndStageCase(caseNumber) {
+      const url = `${CASES_URL}?case_number=eq.${encodeURIComponent(caseNumber)}&select=id,case_number,clinic_name,patient_name,product_type,current_holder`;
+      const res = await getJson(url);
+      const rows = await res.json();
+      if (!rows || rows.length === 0) return { status: 'not_found', caseNumber };
+      const c = groupByCaseNumber(rows)[0];
+      if (c.current_holder) {
+        return c.current_holder === currentUser.name
+          ? { status: 'already_mine', caseNumber }
+          : { status: 'held_by_other', caseNumber, holder: c.current_holder };
+      }
+      if (fetchedCases.has(c.case_number)) return { status: 'already_staged', caseNumber };
+      fetchedCases.set(c.case_number, c);
+      selectedForPickup.add(c.case_number);
+      renderSearchedCases();
+      updatePickupBar();
+      return { status: 'added', caseNumber };
+    }
+
     async function searchCase() {
       const val = searchInput.value.trim();
       if (!val) { alert("اكتب رقم الحالة الأول"); return; }
       searchBtn.disabled = true;
       searchBtn.innerHTML = '<span class="spinner dark"></span>';
       try {
-        const url = `${CASES_URL}?case_number=eq.${encodeURIComponent(val)}&select=id,case_number,clinic_name,patient_name,product_type,current_holder`;
-        const res = await fetch(url, { headers });
-        const rows = await res.json();
-
-        if (!rows || rows.length === 0) {
-          alert(`مفيش حالة برقم "${val}"، تأكد من الرقم`);
-        } else {
-          const grouped = groupByCaseNumber(rows);
-          const c = grouped[0];
-          if (c.current_holder) {
-            if (c.current_holder === currentUser.name) {
-              alert("الحالة دي موجودة في سلتك بالفعل");
-            } else {
-              alert(`الحالة دي حالياً مع المندوب: ${c.current_holder}`);
-            }
-          } else {
-            fetchedCases.set(c.case_number, c);
-            selectedForPickup.add(c.case_number);
-            renderSearchedCases();
-            updatePickupBar();
-            searchInput.value = '';
-          }
-        }
+        const r = await lookupAndStageCase(val);
+        if (r.status === 'not_found') alert(`مفيش حالة برقم "${val}"، تأكد من الرقم`);
+        else if (r.status === 'already_mine') alert("الحالة دي موجودة في سلتك بالفعل");
+        else if (r.status === 'held_by_other') alert(`الحالة دي حالياً مع المندوب: ${r.holder}`);
+        else searchInput.value = '';
       } catch (err) {
         alert("مشكلة في الاتصال، جرب تاني");
       }
@@ -1062,29 +1273,76 @@
       pickupBar.classList.toggle('show', selectedForPickup.size > 0);
     }
 
+    // يحاول حجز حالة واحدة. يرجّع وصفاً للنتيجة بدل تعديل حالة مشتركة مباشرةً،
+    // عشان النداءات تقدر تتنفذ بالتوازي بأمان ثم تُجمَّع نتائجها بالترتيب.
+    async function claimCase(caseNumber) {
+      try {
+        const url = `${CASES_URL}?case_number=eq.${encodeURIComponent(caseNumber)}&current_holder=is.null`;
+        const res = await fetch(url, {
+          method: 'PATCH',
+          headers: { ...headers, "Prefer": "return=representation" },
+          body: JSON.stringify({ status: 'out_for_delivery', current_holder: currentUser.name, picked_up_at: new Date().toISOString() })
+        });
+        // نجاح الكتابة يُحدَّد من حالة HTTP أولاً، لا من قراءة الجسم: لو الاستجابة
+        // اتقبلت (2xx) لكن قراءة JSON فشلت (انقطاع لحظي/جسم مشوَّه)، فالصف اتحدَّث
+        // فعلاً — فلازم نحذفه من قائمة "المتاحة" وإلا يفضل ظاهر كأنه لسه متاح.
+        if (!res.ok) return { caseNumber, claimed: false, blocked: false };
+        let rowsUpdated = null;              // null = تعذّرت قراءة جسم الاستجابة
+        try { rowsUpdated = await res.json(); } catch (e) { rowsUpdated = null; }
+        if (rowsUpdated === null || rowsUpdated.length > 0) return { caseNumber, claimed: true, blocked: false };
+        // مصفوفة فاضية ≠ فشل قراءة: الفاضية تعني الفلتر (current_holder=is.null)
+        // ما طابقش أي صف، أي أن الحالة محجوزة أصلاً لشخص ما.
+        return { caseNumber, claimed: false, blocked: true };
+      } catch (err) {
+        return { caseNumber, claimed: false, blocked: false };
+      }
+    }
+
+    // الرسالة القديمة كانت تتهم "مندوب تاني" دائماً حتى لو الحالة مع المندوب نفسه.
+    // استعلام مجمَّع واحد يحدد الحائز الفعلي فيُعرَض سبب دقيق قابل للتصرف.
+    async function describePickupFailure(blocked) {
+      if (blocked.length === 0) return "مقدرناش ناخد الحالات، جرب تاني";
+      try {
+        const inList = inFilterList(blocked);
+        const res = await getJson(`${CASES_URL}?case_number=in.(${inList})&select=case_number,current_holder`);
+        const rows = await res.json();
+        const mine = [], others = new Map();
+        (rows || []).forEach(r => {
+          if (!r.current_holder) return;
+          if (r.current_holder === currentUser.name) {
+            if (!mine.includes(r.case_number)) mine.push(r.case_number);
+          } else if (!others.has(r.case_number)) {
+            others.set(r.case_number, r.current_holder);
+          }
+        });
+        const parts = [];
+        if (mine.length) parts.push(`موجودة في سلتك بالفعل: ${mine.join('، ')}`);
+        if (others.size) parts.push(`مع مندوب تاني: ${[...others].map(([cn, h]) => `${cn} (${h})`).join('، ')}`);
+        return parts.length ? parts.join('\n') : "الحالات دي مش متاحة دلوقتي، جرب تاني";
+      } catch (e) {
+        return "الحالات دي مش متاحة دلوقتي، جرب تاني";
+      }
+    }
+
     async function confirmPickup() {
       pickupBtn.disabled = true;
       pickupBtnText.innerHTML = 'جاري النقل... <span class="spinner dark"></span>';
+      // بالتوازي بدل التتابع: كل حالة رقمها مختلف فلا تعارض بينها، وكان الانتظار
+      // التسلسلي يضرب رحلة شبكة كاملة × عدد الحالات (دفعة من 10 = 10 رحلات متتالية).
+      const outcomes = await Promise.all([...selectedForPickup].map(claimCase));
       let successCount = 0;
-      for (const caseNumber of selectedForPickup) {
-        try {
-          const url = `${CASES_URL}?case_number=eq.${encodeURIComponent(caseNumber)}&current_holder=is.null`;
-          const res = await fetch(url, {
-            method: 'PATCH',
-            headers: { ...headers, "Prefer": "return=representation" },
-            body: JSON.stringify({ status: 'out_for_delivery', current_holder: currentUser.name, picked_up_at: new Date().toISOString() })
-          });
-          const updated = await res.json();
-          if (updated && updated.length > 0) { successCount++; fetchedCases.delete(caseNumber); }
-        } catch (err) { }
-      }
+      const blocked = [];
+      outcomes.forEach(o => {
+        if (o.claimed) { successCount++; fetchedCases.delete(o.caseNumber); }
+        else if (o.blocked) blocked.push(o.caseNumber);
+      });
       selectedForPickup.clear();
       updatePickupBar();
       renderSearchedCases();
       pickupBtn.disabled = false;
       pickupBtnText.textContent = `📦 خد المحدد للسلة`;
       if (successCount > 0) { switchTab('cart'); }
-      else { alert("للأسف كل الحالات المحددة اتاخدت من مندوب تاني قبلك"); }
+      else { alert(await describePickupFailure(blocked)); }
       await loadDashboardStats();
     }
 
@@ -1096,7 +1354,7 @@
       updateBatchToolbar();
       try {
         const url = `${CASES_URL}?status=eq.out_for_delivery&current_holder=eq.${encodeURIComponent(currentUser.name)}&select=id,case_number,clinic_name,doctor_name,patient_name,product_type&order=clinic_name.asc,case_number.asc`;
-        const res = await fetch(url, { headers });
+        const res = await getJson(url);
         const rows = await res.json();
         const grouped = groupByCaseNumber(rows);
 
@@ -1288,7 +1546,7 @@
       returnedList.innerHTML = '<div class="empty-state">جاري التحميل...</div>';
       try {
         const url = `${RETURNS_URL}?delegate_name=eq.${encodeURIComponent(currentUser.name)}&order=returned_at.desc&select=case_number,reason,returned_at`;
-        const res = await fetch(url, { headers });
+        const res = await getJson(url);
         const rows = await res.json();
 
         returnedCountEl.textContent = rows.length;
@@ -1302,8 +1560,10 @@
         const caseNumbers = [...new Set(rows.map(r => r.case_number))];
         let caseInfoMap = {};
         if (caseNumbers.length > 0) {
-          const infoUrl = `${CASES_URL}?case_number=in.(${caseNumbers.join(',')})&select=case_number,clinic_name,patient_name`;
-          const infoRes = await fetch(infoUrl, { headers });
+          // رقم يحوي فاصلة أو قوساً كان يكسر فلتر in.() فيرجع PostgREST خطأ 400
+          // يُبتلَع في catch ويسقط تبويب المرجعة كله — inFilterList يقتبس القيم بأمان.
+          const infoUrl = `${CASES_URL}?case_number=in.(${inFilterList(caseNumbers)})&select=case_number,clinic_name,patient_name`;
+          const infoRes = await getJson(infoUrl);
           const infoRows = await infoRes.json();
           infoRows.forEach(r => { caseInfoMap[r.case_number] = r; });
         }
@@ -1361,7 +1621,10 @@
     pickupBtn.addEventListener('click', confirmPickup);
 
     searchBtn.addEventListener('click', searchCase);
-    scanBtn.addEventListener('click', () => startScanner('reader', (code) => { searchInput.value = code; searchCase(); }));
+    // تبويب البحث = التقاط علب للسلة → مسح متتالي (الكاميرا تفضل مفتوحة).
+    // تبويب السلة = فلترة القائمة الموجودة → مسح مفرد، المتتالي بلا معنى هناك.
+    scanBtn.addEventListener('click', () => startScanner('reader', handleContinuousScan, { continuous: true }));
+    scanDoneBtn.addEventListener('click', () => stopScanner('reader'));
     searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') searchCase(); });
 
     cartScanBtn.addEventListener('click', () => startScanner('cartReader', (code) => { cartSearchInput.value = code; cartSearchInput.dispatchEvent(new Event('input')); }));
@@ -1417,7 +1680,7 @@
             recipient_name: recipientName, delegate_name: currentUser.name
           })))
         });
-        const inList = caseNumbers.map(encodeURIComponent).join(',');
+        const inList = inFilterList(caseNumbers);
         await fetch(`${CASES_URL}?case_number=in.(${inList})`, {
           method: 'PATCH',
           headers: { ...headers, "Prefer": "return=minimal" },
