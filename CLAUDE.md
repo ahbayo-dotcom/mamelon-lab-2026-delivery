@@ -27,7 +27,7 @@ Also in this folder: `manifest.json` (PWA manifest), `icon.jpg` (app icon).
 - **Tables used:** `cases` (read/update `status`, `current_holder`, `picked_up_at`), `deliveries` (insert on delivery), `returns` (insert on return), `delegate_directory` (a view, read-only, used for PIN auth).
 - **Auth:** 4-digit PIN matched directly against `delegate_directory`, stored client-side in `localStorage` (`mamelon_delegate_user`) — UI-level only, not real Supabase Auth. Same trust model as `mamelon-erp`.
 - **Notifications:** Telegram bot sends a message to one fixed group chat on every delivery/return. As of 25 Aug 2026 (ADR-C03) this goes through a Supabase Edge Function (`telegram-notify`) instead of calling `api.telegram.org` directly from the client — the bot token lives server-side only, as a Supabase secret. See `docs/06_API.md`.
-- **QR/barcode scanning:** `html5-qrcode` library, loaded from `unpkg.com` CDN.
+- **QR/barcode scanning:** `html5-qrcode` library, bundled locally as `html5-qrcode.min.js` (v2.3.8, pinned) since 27 Aug 2026 (ADR-C06) — previously loaded unpinned from `unpkg.com` CDN, which likely caused the APK-wrapping tool's auto permission-detection crawl to miss the camera API usage and ship a build with no `CAMERA` permission declared.
 
 ## Business Rules (confirmed directly by the user — do not re-litigate as bugs)
 

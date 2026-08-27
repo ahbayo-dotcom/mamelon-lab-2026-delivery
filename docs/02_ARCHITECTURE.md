@@ -4,7 +4,7 @@
 | الطبقة | التقنية | ملاحظات |
 | :--- | :--- | :--- |
 | الواجهة | HTML + CSS + JavaScript خام (بلا إطار عمل) | ملف واحد `index.html` |
-| الباركود/QR | `html5-qrcode` (عبر CDN `unpkg.com`) | مسح كاميرا الهاتف مباشرة |
+| الباركود/QR | `html5-qrcode` (ملف محلي `html5-qrcode.min.js`, v2.3.8 — انظر ADR-C06) | مسح كاميرا الهاتف مباشرة |
 | قاعدة البيانات | Supabase (REST/PostgREST مباشرة عبر `fetch`) | **نفس مشروع `mamelon-erp`** — `qhhqodxbhhvhkjtzmmsh` |
 | الإشعارات | بوت تليجرام عبر Supabase Edge Function (`telegram-notify`) | ✅ التوكن محمي خلف الخادم منذ 25 أغسطس 2026، راجع `06_API.md`/ADR-C03 |
 | التغليف | PWA → APK عبر خدمة تحويل خارجية | مثبَّت فعلياً على أجهزة المندوبين |
