@@ -125,6 +125,17 @@
       z-index: 1;
     }
 
+    /* رقم الإصدار ظاهر للمندوب: بلا خطوة بناء ولا service worker، الطريقة الوحيدة
+       ليتأكد أنه يشغّل النسخة الجديدة بعد النشر (وأن الـWebView ما خدمهوش من الكاش)
+       هي أن يقرأه بعينه ويقوله لنا. */
+    .app-version {
+      text-align: center;
+      margin-top: 14px;
+      font-size: 11px;
+      color: #7C8AA5;
+      letter-spacing: .3px;
+    }
+
     main {
       flex: 1;
       padding: 12px 12px 90px;
@@ -736,6 +747,7 @@
         <button class="btn btn-dark" id="loginBtn"><span id="loginBtnText">دخول</span></button>
         <div class="banner error" id="loginError"></div>
       </div>
+      <div class="app-version" id="appVersion"></div>
     </div>
 
     <div class="screen" id="homeScreen">
@@ -846,6 +858,10 @@
     const DELEGATES_URL = `${SUPABASE_URL}/rest/v1/delegate_directory`;
     const headers = { "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": "application/json" };
 
+    // ‼️ يُرفَع يدوياً مع كل نشر — لا خطوة بناء تولّده. المندوب يقرأه على شاشة
+    // الدخول فيتأكد أن التحديث وصله فعلاً ولم يخدمه الـWebView من الكاش.
+    const APP_VERSION = '1.1.0';
+
     // كل قراءات الحالة الحيّة تمر من هنا بـ cache:'no-store'. السبب: WebView قد يطبّق
     // كاش heuristic على استجابات GET لو ما بعت السيرفر ترويسة Cache-Control صريحة،
     // فيعرض المندوب سلة/بحثاً قديمين بعد التقاط أو تسليم تم فعلاً على السيرفر.
@@ -901,6 +917,7 @@
     const loginBtn = document.getElementById('loginBtn');
     const loginBtnText = document.getElementById('loginBtnText');
     const loginError = document.getElementById('loginError');
+    document.getElementById('appVersion').textContent = 'إصدار ' + APP_VERSION;
     const logoutBtn = document.getElementById('logoutBtn');
     const headerTitle = document.getElementById('headerTitle');
     const headerSub = document.getElementById('headerSub');
@@ -1030,6 +1047,9 @@
         } else if (r.status === 'held_by_other') {
           showScanToast(`🚫 ${code} — مع المندوب ${r.holder}`, 'bad');
           scanVibrate(false);
+        } else if (r.status === 'not_ready') {
+          showScanToast(`⛔ ${code} — لسه مش جاهزة في المعمل`, 'bad');
+          scanVibrate(false);
         } else {
           showScanToast(`❌ مفيش حالة برقم ${code}`, 'bad');
           scanVibrate(false);
@@ -1146,10 +1166,17 @@
     // ===== الداشبورد =====
     async function loadDashboardStats() {
       try {
-        const inCartRes = await getJson(`${CASES_URL}?status=eq.out_for_delivery&current_holder=eq.${encodeURIComponent(currentUser.name)}&select=id`);
+        // ‼️ الحيازة مصدرها `current_holder` وحده لا `status`. الفلتر القديم كان
+        // يشترط status=out_for_delivery، فأي مسار في برنامج المعمل يعيد الحالة إلى
+        // "جاهزة" (مراجعة تاريخ حفر مثلاً) كان يُسقطها من العدّاد ومن السلة معاً
+        // بينما هي في يد المندوب فعلاً — لا عدد ولا سجل (بلاغ 29 أغسطس 2026).
+        const inCartRes = await getJson(`${CASES_URL}?current_holder=eq.${encodeURIComponent(currentUser.name)}&status=neq.delivered&select=case_number`);
         const inCart = await inCartRes.json();
-        dashCart.textContent = inCart.length || 0;
-        cartCountEl.textContent = inCart.length || 0;
+        // العدّ بأرقام الحالات لا بالصفوف — أمر الشغل الواحد قد يكون عدة مواد،
+        // والسلة تعرضه بندًا واحداً، فالعدّاد لازم يطابق ما تراه العين.
+        const inCartCount = new Set((inCart || []).map(r => r.case_number)).size;
+        dashCart.textContent = inCartCount;
+        cartCountEl.textContent = inCartCount;
       } catch (err) { }
 
       try {
@@ -1172,7 +1199,7 @@
     // موصوفة بدل ما تعرض تنبيهاً بنفسها. السبب: المسح المتتالي لا يحتمل alert()
     // لأنه يوقف الكاميرا ويعطّل التدفق، فيحتاج يعرض إشعاراً غير معطِّل بدلاً منه.
     async function lookupAndStageCase(caseNumber) {
-      const url = `${CASES_URL}?case_number=eq.${encodeURIComponent(caseNumber)}&select=id,case_number,clinic_name,patient_name,product_type,current_holder`;
+      const url = `${CASES_URL}?case_number=eq.${encodeURIComponent(caseNumber)}&select=id,case_number,clinic_name,patient_name,product_type,current_holder,status`;
       const res = await getJson(url);
       const rows = await res.json();
       if (!rows || rows.length === 0) return { status: 'not_found', caseNumber };
@@ -1182,6 +1209,8 @@
           ? { status: 'already_mine', caseNumber }
           : { status: 'held_by_other', caseNumber, holder: c.current_holder };
       }
+      // سبب دقيق قبل الالتقاط بدل فشل غامض عند الضغط على "خد المحدد للسلة"
+      if (c.status !== 'ready') return { status: 'not_ready', caseNumber, caseStatus: c.status };
       if (fetchedCases.has(c.case_number)) return { status: 'already_staged', caseNumber };
       fetchedCases.set(c.case_number, c);
       selectedForPickup.add(c.case_number);
@@ -1200,6 +1229,7 @@
         if (r.status === 'not_found') alert(`مفيش حالة برقم "${val}"، تأكد من الرقم`);
         else if (r.status === 'already_mine') alert("الحالة دي موجودة في سلتك بالفعل");
         else if (r.status === 'held_by_other') alert(`الحالة دي حالياً مع المندوب: ${r.holder}`);
+        else if (r.status === 'not_ready') alert("الحالة دي لسه مش جاهزة في المعمل — كلّم المعمل قبل ما تاخدها");
         else searchInput.value = '';
       } catch (err) {
         alert("مشكلة في الاتصال، جرب تاني");
@@ -1277,7 +1307,11 @@
     // عشان النداءات تقدر تتنفذ بالتوازي بأمان ثم تُجمَّع نتائجها بالترتيب.
     async function claimCase(caseNumber) {
       try {
-        const url = `${CASES_URL}?case_number=eq.${encodeURIComponent(caseNumber)}&current_holder=is.null`;
+        // ⚠️ `status=eq.ready` شرط لازم: بدونه كان السكان يلتقط حالة لسه في الإنتاج
+        // (`new`) فتخرج من المعمل قبل ما تتحفر — حصل فعلاً مع 11478 و 11499.
+        // الشرطان يُنفَّذان في القاعدة لا في الواجهة حتى لا تُوجد فجوة يلتقط فيها
+        // مندوبان الحالة نفسها.
+        const url = `${CASES_URL}?case_number=eq.${encodeURIComponent(caseNumber)}&current_holder=is.null&status=eq.ready`;
         const res = await fetch(url, {
           method: 'PATCH',
           headers: { ...headers, "Prefer": "return=representation" },
@@ -1353,7 +1387,10 @@
       selectedClinic = null;
       updateBatchToolbar();
       try {
-        const url = `${CASES_URL}?status=eq.out_for_delivery&current_holder=eq.${encodeURIComponent(currentUser.name)}&select=id,case_number,clinic_name,doctor_name,patient_name,product_type&order=clinic_name.asc,case_number.asc`;
+        // ‼️ `current_holder` وحده يحدد ما في يد المندوب — راجع التعليق في loadDashboardStats.
+        // إسقاط شرط الحالة يضمن أن حالةً معه لا تختفي أبداً مهما عبثت بها مسارات المعمل،
+        // ويبقى استثناء `delivered` فقط لأن المسلَّمة خرجت من يده فعلاً.
+        const url = `${CASES_URL}?current_holder=eq.${encodeURIComponent(currentUser.name)}&status=neq.delivered&select=id,case_number,clinic_name,doctor_name,patient_name,product_type&order=clinic_name.asc,case_number.asc`;
         const res = await getJson(url);
         const rows = await res.json();
         const grouped = groupByCaseNumber(rows);
