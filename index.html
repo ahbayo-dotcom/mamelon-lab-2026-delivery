@@ -542,6 +542,67 @@
       margin-top: 2px;
     }
 
+    /* شارات السلة: انحراف حالة المعمل (7.1) ومدة بقاء الحالة مع المندوب (7.2) */
+    .case-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 5px;
+    }
+
+    .case-badge {
+      font-size: 10.5px;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 12px;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+
+    .case-badge.warn {
+      background: var(--red-bg);
+      color: var(--red);
+      border-color: rgba(193, 68, 60, .3);
+    }
+
+    .case-badge.age-fresh {
+      background: var(--green-bg);
+      color: var(--green);
+      border-color: rgba(31, 138, 85, .25);
+    }
+
+    .case-badge.age-mid {
+      background: #FFF6E0;
+      color: #8A6A0B;
+      border-color: rgba(201, 162, 39, .35);
+    }
+
+    .case-badge.age-old {
+      background: var(--red-bg);
+      color: var(--red);
+      border-color: rgba(193, 68, 60, .3);
+    }
+
+    /* شريط وضع اللااتصال فوق السلة (7.5) */
+    .offline-note {
+      background: #FFF6E0;
+      border: 1px solid rgba(201, 162, 39, .45);
+      color: #8A6A0B;
+      font-size: 12px;
+      font-weight: 700;
+      border-radius: 10px;
+      padding: 8px 10px;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+
+    /* العنصر المعروض من نسخة محفوظة: للعرض فقط، بلا أفعال */
+    .case-item.readonly .case-actions,
+    .case-item.readonly .item-actions-right,
+    .case-item.readonly .product-picker {
+      display: none;
+    }
+
     .item-actions-right {
       display: flex;
       align-items: center;
@@ -661,16 +722,18 @@
       display: block;
     }
 
+    /* شبكة 3×2 بدل flex-wrap: مع ستة منتجات (بعد إضافة Cast) كان العنصر السادس
+       يلتف وحده ويتمدد بعرض الصف كاملاً لأن `flex:1` يملأ ما تبقى — شكل مشوَّه
+       وهدف لمس ضخم بلا سبب. الشبكة تعطي ستة أزرار متساوية في صفّين.
+       نفس الصنف يخدم شرائح خطورة البلاغ الثلاث فتملأ صفاً واحداً تماماً. */
     .product-picker {
-      display: flex;
-      flex-wrap: wrap;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
       gap: 4px;
       margin-bottom: 8px;
     }
 
     .product-chip {
-      flex: 1;
-      min-width: 60px;
       text-align: center;
       padding: 8px 4px;
       border-radius: 8px;
@@ -731,7 +794,10 @@
   <header>
     <div class="headrow">
       <div class="brand"><span class="dot"></span>MAMELON LAB</div>
-      <button class="logout-btn" id="logoutBtn" style="display:none">تسجيل خروج</button>
+      <div style="display:flex; gap:6px;">
+        <button class="logout-btn" id="bugBtn" style="display:none">🐞 بلّغ</button>
+        <button class="logout-btn" id="logoutBtn" style="display:none">تسجيل خروج</button>
+      </div>
     </div>
     <h1 id="headerTitle">تطبيق المندوب</h1>
     <div class="sub" id="headerSub">سجّل دخولك بالـ PIN بتاعك</div>
@@ -752,6 +818,26 @@
 
     <div class="screen" id="homeScreen">
 
+      <!-- نموذج البلاغ (7.3) — يُدرج صفاً في bug_reports الجاهز أصلاً في القاعدة -->
+      <div class="card" id="bugPanel" style="display:none;">
+        <label class="field-label">🐞 بلّغ عن مشكلة</label>
+        <!-- القيم إنجليزية عمداً: جدول bug_reports مشترك مع mamelon-erp الذي يكتب
+             normal/important/blocking، وأي قيمة عربية هنا كانت ستشذّ عن مفردات الجدول. -->
+        <div class="product-picker" id="bugSeverityPicker">
+          <div class="product-chip active" data-severity="normal">🟢 عادي</div>
+          <div class="product-chip" data-severity="important">🟡 مهم</div>
+          <div class="product-chip" data-severity="blocking">🔴 يوقف العمل</div>
+        </div>
+        <div style="height:8px"></div>
+        <textarea id="bugDescInput" class="text-input" maxlength="500" style="min-height:80px;"
+          placeholder="اكتب المشكلة بالتفصيل: إيه اللي حصل وإنت بتعمل إيه؟ *"></textarea>
+        <div class="banner" id="bugMsg"></div>
+        <div style="height:8px"></div>
+        <button class="btn btn-primary btn-sm" id="bugSendBtn" disabled>إرسال البلاغ</button>
+        <div style="height:6px"></div>
+        <button class="btn btn-ghost btn-sm" id="bugCancelBtn">إلغاء</button>
+      </div>
+
       <div class="dashboard-grid">
         <div class="dash-card">
           <div class="dash-title">في السلة</div>
@@ -771,6 +857,7 @@
         <div class="tab active" id="tabAvailable">البحث</div>
         <div class="tab" id="tabCart">سلتي <span class="badge" id="cartCount">0</span></div>
         <div class="tab" id="tabReturned">مرجعة <span class="badge" id="returnedCount">0</span></div>
+        <div class="tab" id="tabToday">اليوم <span class="badge" id="todayCount">0</span></div>
       </div>
 
       <!-- تبويب البحث -->
@@ -796,8 +883,10 @@
       <div id="cartContainer" style="display:none;">
         <div class="card">
           <div class="search-box">
-            <input id="cartSearchInput" class="search-input" type="text" placeholder="بحث في السلة..."
-              inputmode="numeric">
+            <!-- inputmode نصي لا رقمي: الفلترة تشمل اسم العيادة والطبيب والمريض (7.7)،
+                 ولوحة المفاتيح الرقمية كانت تمنع كتابة العربية أصلاً. -->
+            <input id="cartSearchInput" class="search-input" type="text" placeholder="بحث برقم الحالة أو العيادة أو المريض..."
+              inputmode="text">
             <button class="scan-btn" id="cartScanBtn">📷</button>
           </div>
         </div>
@@ -808,6 +897,11 @@
       <!-- تبويب الحالات المرجعة -->
       <div id="returnedContainer" style="display:none;">
         <div id="returnedList"></div>
+      </div>
+
+      <!-- تبويب سجل اليوم (7.4) -->
+      <div id="todayContainer" style="display:none;">
+        <div id="todayList"></div>
       </div>
 
     </div>
@@ -856,11 +950,12 @@
     const DELIVERIES_URL = `${SUPABASE_URL}/rest/v1/deliveries`;
     const RETURNS_URL = `${SUPABASE_URL}/rest/v1/returns`;
     const DELEGATES_URL = `${SUPABASE_URL}/rest/v1/delegate_directory`;
+    const BUG_REPORTS_URL = `${SUPABASE_URL}/rest/v1/bug_reports`;
     const headers = { "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": "application/json" };
 
     // ‼️ يُرفَع يدوياً مع كل نشر — لا خطوة بناء تولّده. المندوب يقرأه على شاشة
     // الدخول فيتأكد أن التحديث وصله فعلاً ولم يخدمه الـWebView من الكاش.
-    const APP_VERSION = '1.1.0';
+    const APP_VERSION = '1.2.0';
 
     // كل قراءات الحالة الحيّة تمر من هنا بـ cache:'no-store'. السبب: WebView قد يطبّق
     // كاش heuristic على استجابات GET لو ما بعت السيرفر ترويسة Cache-Control صريحة،
@@ -888,7 +983,10 @@
       return div.innerHTML;
     }
 
-    const PRODUCTS = ['PMMA', 'ZIRCON', 'EMAX', 'Implant Zircon', 'Night Guard'];
+    // ‼️ الأسماء هنا تُكتب كما هي في `deliveries.delivery_stage`. القيمة الصحيحة
+    // لأي منتج هي تهجئته في كتالوج `products` وفي `src/constants.js` بمستودع
+    // mamelon-erp — 'Cast' بحرف كبير واحد، لا 'CAST' ولا 'cast'.
+    const PRODUCTS = ['PMMA', 'ZIRCON', 'EMAX', 'Implant Zircon', 'Night Guard', 'Cast'];
 
     let currentUser = JSON.parse(localStorage.getItem('mamelon_delegate_user') || 'null');
     let selectedForPickup = new Set();
@@ -930,6 +1028,17 @@
     const availableList = document.getElementById('availableList');
     const cartList = document.getElementById('cartList');
     const returnedList = document.getElementById('returnedList');
+    const todayContainer = document.getElementById('todayContainer');
+    const todayList = document.getElementById('todayList');
+    const tabToday = document.getElementById('tabToday');
+    const todayCountEl = document.getElementById('todayCount');
+    const bugBtn = document.getElementById('bugBtn');
+    const bugPanel = document.getElementById('bugPanel');
+    const bugSeverityPicker = document.getElementById('bugSeverityPicker');
+    const bugDescInput = document.getElementById('bugDescInput');
+    const bugSendBtn = document.getElementById('bugSendBtn');
+    const bugCancelBtn = document.getElementById('bugCancelBtn');
+    const bugMsg = document.getElementById('bugMsg');
     const searchInput = document.getElementById('searchInput');
     const searchBtn = document.getElementById('searchBtn');
     const scanBtn = document.getElementById('scanBtn');
@@ -1151,14 +1260,20 @@
       loginScreen.classList.remove('show');
       homeScreen.classList.add('show');
       logoutBtn.style.display = 'block';
+      bugBtn.style.display = 'block';
       headerTitle.textContent = "أهلاً، " + currentUser.name;
-      headerSub.textContent = "إدارة الطلبات والتسليمات";
+      // الإصدار كان يظهر في شاشة الدخول فقط، والمندوب لا يراها إلا عند أول دخول
+      // (الجلسة محفوظة في localStorage). عرضه في الترويسة يجعله مقروءاً في أي لحظة
+      // — وهو الطريقة الوحيدة للتأكد أن التحديث وصل ولم يخدمه الـWebView من الكاش.
+      headerSub.textContent = "إدارة الطلبات والتسليمات · إصدار " + APP_VERSION;
       loadDashboardStats();
     }
 
     function logout() {
       stopAnyScanner();
       localStorage.removeItem('mamelon_delegate_user');
+      // نسخة السلة تخص مندوباً بعينه — لا تُترك لمن يدخل بعده على نفس الجهاز.
+      localStorage.removeItem(CART_SNAPSHOT_KEY);
       currentUser = null;
       location.reload();
     }
@@ -1184,6 +1299,7 @@
         const deliveredRes = await getJson(`${DELIVERIES_URL}?delegate_name=eq.${encodeURIComponent(currentUser.name)}&delivered_at=gte.${todayStart}&select=id`);
         const delivered = await deliveredRes.json();
         dashDelivered.textContent = delivered.length || 0;
+        todayCountEl.textContent = delivered.length || 0;
       } catch (err) { }
 
       try {
@@ -1381,6 +1497,60 @@
     }
 
     // ===== سلتي =====
+
+    const CART_SNAPSHOT_KEY = 'mamelon_cart_snapshot';
+
+    // ‼️ `products` مجموعة Set، و`JSON.stringify` يحوّل الـSet إلى `{}` بلا أي خطأ ظاهر —
+    // أي أن السلة كانت ستُحفظ بلا منتجات إطلاقاً. التحويل لمصفوفة هنا وإعادة بنائها
+    // Set عند القراءة شرطُ صحةٍ لا تحسين شكلي.
+    function saveCartSnapshot(grouped) {
+      try {
+        localStorage.setItem(CART_SNAPSHOT_KEY, JSON.stringify({
+          at: Date.now(),
+          name: currentUser.name,
+          cases: grouped.map(c => ({ ...c, products: [...c.products] }))
+        }));
+      } catch (err) { }
+    }
+
+    function readCartSnapshot() {
+      try {
+        const raw = localStorage.getItem(CART_SNAPSHOT_KEY);
+        if (!raw) return null;
+        const snap = JSON.parse(raw);
+        // نسخة زميل على نفس الجهاز لا تُعرض لمندوب آخر.
+        if (!snap || !Array.isArray(snap.cases) || snap.name !== currentUser.name) return null;
+        return { at: snap.at, cases: snap.cases.map(c => ({ ...c, products: new Set(c.products || []) })) };
+      } catch (err) { return null; }
+    }
+
+    // 7.2 — مدة بقاء الحالة في يد المندوب. ترجّع null إذا لم يكن هناك تاريخ التقاط،
+    // فشارة كاذبة أسوأ من غياب الشارة.
+    function timeInHandBadge(pickedUpAt, now = Date.now()) {
+      if (!pickedUpAt) return null;
+      const t = new Date(pickedUpAt).getTime();
+      if (!Number.isFinite(t)) return null;
+      const hours = Math.max(0, (now - t) / 3600000);
+      const days = Math.floor(hours / 24);
+      if (days < 1) return { tone: 'age-fresh', label: hours < 1 ? 'معاك من أقل من ساعة' : `معاك من ${Math.floor(hours)} ساعة` };
+      if (days === 1) return { tone: 'age-mid', label: 'معاك من يوم' };
+      if (days === 2) return { tone: 'age-mid', label: 'معاك من يومين' };
+      return { tone: 'age-old', label: `معاك من ${days} ${days <= 10 ? 'أيام' : 'يوم'}` };
+    }
+
+    // 7.1 — الحيازة مصدرها `current_holder` (ADR-C08)، فالحالة تبقى ظاهرة مهما عبث بها
+    // المعمل. هذه الشارة تجعل ذلك العبث **مرئياً** بدل أن يكون صامتاً كما حصل في 29 أغسطس.
+    function staleStateBadge(status) {
+      if (!status || status === 'out_for_delivery') return null;
+      return { tone: 'warn', label: '⚠️ المعمل عدّل الحالة' };
+    }
+
+    function buildCaseBadges(c) {
+      const badges = [staleStateBadge(c.status), timeInHandBadge(c.picked_up_at)].filter(Boolean);
+      if (badges.length === 0) return '';
+      return `<div class="case-badges">${badges.map(b => `<span class="case-badge ${b.tone}">${escapeHtml(b.label)}</span>`).join('')}</div>`;
+    }
+
     async function loadCart() {
       cartList.innerHTML = '<div class="empty-state">جاري التحميل...</div>';
       selectedForDelivery.clear();
@@ -1390,192 +1560,216 @@
         // ‼️ `current_holder` وحده يحدد ما في يد المندوب — راجع التعليق في loadDashboardStats.
         // إسقاط شرط الحالة يضمن أن حالةً معه لا تختفي أبداً مهما عبثت بها مسارات المعمل،
         // ويبقى استثناء `delivered` فقط لأن المسلَّمة خرجت من يده فعلاً.
-        const url = `${CASES_URL}?current_holder=eq.${encodeURIComponent(currentUser.name)}&status=neq.delivered&select=id,case_number,clinic_name,doctor_name,patient_name,product_type&order=clinic_name.asc,case_number.asc`;
+        // status و picked_up_at للشارتين (7.1/7.2): كلاهما في نفس الصف المجلوب
+        // أصلاً، فلا استعلام إضافي ولا حِمل على القاعدة.
+        const url = `${CASES_URL}?current_holder=eq.${encodeURIComponent(currentUser.name)}&status=neq.delivered&select=id,case_number,clinic_name,doctor_name,patient_name,product_type,status,picked_up_at&order=clinic_name.asc,case_number.asc`;
         const res = await getJson(url);
         const rows = await res.json();
         const grouped = groupByCaseNumber(rows);
-
-        cartCountEl.textContent = grouped.length;
-        if (grouped.length === 0) {
-          cartList.innerHTML = '<div class="empty-state">سلتك فاضية — خد طلبات من تبويب البحث</div>';
-          return;
-        }
-        cartList.innerHTML = '';
-        let lastClinic = null;
-        grouped.forEach(c => {
-          if (c.clinic_name !== lastClinic) {
-            lastClinic = c.clinic_name;
-            const header = document.createElement('div');
-            header.className = 'clinic-header';
-            header.textContent = '🏥 ' + (c.clinic_name || '—');
-            cartList.appendChild(header);
-          }
-
-          const el = document.createElement('div');
-          el.className = 'case-item';
-          el.dataset.casenum = c.case_number;
-          const preselected = pendingProducts[c.case_number] || null;
-          el.innerHTML = `
-        <div class="case-item-top">
-          <div>
-            <div class="case-num">${escapeHtml(c.case_number)}</div>
-            <div class="case-clinic">${escapeHtml(c.clinic_name || '—')} · ${escapeHtml(c.doctor_name || '—')}<br>${escapeHtml(c.patient_name || '—')}</div>
-          </div>
-          <div class="item-actions-right">
-            <div class="checkbox" data-case="${escapeHtml(c.case_number)}" data-clinic="${escapeHtml(c.clinic_name || '')}"></div>
-          </div>
-        </div>
-        <div class="case-products">${[...c.products].map(p => `<span class="chip">${escapeHtml(p)}</span>`).join('')}</div>
-        <div class="product-picker" style="margin-top:8px;">${PRODUCTS.map(p => `<div class="product-chip${preselected === p ? ' active' : ''}" data-product="${escapeHtml(p)}">${escapeHtml(p)}</div>`).join('')}</div>
-        <div class="case-actions">
-          <button class="btn btn-green btn-sm deliver-open-btn">✅ تسليم</button>
-          <button class="btn btn-red btn-sm return-btn">↩️ رجّع</button>
-        </div>
-        <div class="deliver-form">
-          <input class="text-input recipient-input" placeholder="اسم المستلم في العيادة *" maxlength="100">
-          <button class="btn btn-primary btn-sm confirm-deliver-btn" disabled>تأكيد التسليم</button>
-        </div>
-        <div class="return-form">
-          <textarea class="text-input return-reason-input" placeholder="سبب الإرجاع (اختياري)" maxlength="200" style="min-height:60px;"></textarea>
-          <button class="btn btn-red btn-sm confirm-return-btn">تأكيد الإرجاع</button>
-          <div style="height:6px"></div>
-          <button class="btn btn-ghost btn-sm cancel-return-btn">إلغاء</button>
-        </div>
-      `;
-
-          let product = preselected;
-          const form = el.querySelector('.deliver-form');
-          const confirmBtn = el.querySelector('.confirm-deliver-btn');
-          const recipientInput = el.querySelector('.recipient-input');
-          const returnForm = el.querySelector('.return-form');
-          const returnReasonInput = el.querySelector('.return-reason-input');
-          const confirmReturnBtn = el.querySelector('.confirm-return-btn');
-          const cancelReturnBtn = el.querySelector('.cancel-return-btn');
-          const deliverOpenBtn = el.querySelector('.deliver-open-btn');
-          const checkboxEl = el.querySelector('.checkbox');
-
-          deliverOpenBtn.addEventListener('click', () => {
-            form.classList.toggle('show');
-            returnForm.classList.remove('show');
-          });
-
-          el.querySelectorAll('.product-chip').forEach(chip => {
-            chip.addEventListener('click', () => {
-              el.querySelectorAll('.product-chip').forEach(x => x.classList.remove('active'));
-              chip.classList.add('active');
-              product = chip.dataset.product;
-              savePendingProduct(c.case_number, product);
-              checkDeliverEnabled();
-            });
-          });
-          recipientInput.addEventListener('input', checkDeliverEnabled);
-          function checkDeliverEnabled() { confirmBtn.disabled = !(product && recipientInput.value.trim().length > 0); }
-
-          // --- صندوق اختيار الدفعة الجماعية ---
-          checkboxEl.addEventListener('click', () => {
-            const cn = checkboxEl.dataset.case, clinic = checkboxEl.dataset.clinic;
-            if (selectedForDelivery.has(cn)) {
-              selectedForDelivery.delete(cn);
-              checkboxEl.classList.remove('checked');
-              if (selectedForDelivery.size === 0) selectedClinic = null;
-            } else {
-              if (selectedClinic && selectedClinic !== clinic) return;
-              selectedClinic = clinic;
-              selectedForDelivery.add(cn);
-              checkboxEl.classList.add('checked');
-              form.classList.remove('show');
-              returnForm.classList.remove('show');
-            }
-            deliverOpenBtn.disabled = selectedForDelivery.has(cn);
-            applyClinicLock();
-            updateBatchToolbar();
-          });
-
-          // --- تأكيد التسليم مع إرسال إشعار تليجرام ---
-          confirmBtn.addEventListener('click', async () => {
-            confirmBtn.disabled = true;
-            confirmBtn.textContent = '...جاري التسجيل';
-            const recipientName = recipientInput.value.trim();
-            try {
-              await fetch(DELIVERIES_URL, {
-                method: 'POST',
-                headers: { ...headers, "Prefer": "return=minimal" },
-                body: JSON.stringify({ case_number: c.case_number, delivery_stage: product, recipient_name: recipientName, delegate_name: currentUser.name })
-              });
-              await fetch(`${CASES_URL}?case_number=eq.${encodeURIComponent(c.case_number)}`, {
-                method: 'PATCH',
-                headers: { ...headers, "Prefer": "return=minimal" },
-                body: JSON.stringify({ status: 'delivered', current_holder: null, picked_up_at: null })
-              });
-
-              // 📲 إرسال إشعار التسليم للتليجرام
-              const deliverMsg = `📦 <b>تسليم حالة جديد</b>\n\n` +
-                `🔹 <b>رقم الحالة:</b> ${c.case_number}\n` +
-                `🏥 <b>العيادة:</b> ${c.clinic_name || 'غير محدد'}\n` +
-                `👤 <b>الطبيب:</b> ${c.doctor_name || 'غير محدد'}\n` +
-                `👤 <b>المريض:</b> ${c.patient_name || 'غير محدد'}\n` +
-                `🦷 <b>المنتج:</b> ${product}\n` +
-                `🛵 <b>المندوب:</b> ${currentUser.name}\n` +
-                `✍️ <b>المستلم:</b> ${recipientName}`;
-              sendTelegramNotification(deliverMsg);
-
-              clearPendingProduct(c.case_number);
-              await loadCart();
-              await loadDashboardStats();
-            } catch (err) {
-              confirmBtn.disabled = false;
-              confirmBtn.textContent = 'تأكيد التسليم';
-              alert("حصلت مشكلة، جرب تاني");
-            }
-          });
-
-          el.querySelector('.return-btn').addEventListener('click', () => {
-            returnForm.classList.toggle('show');
-            form.classList.remove('show');
-          });
-          cancelReturnBtn.addEventListener('click', () => { returnForm.classList.remove('show'); returnReasonInput.value = ''; });
-
-          // --- تأكيد الإرجاع مع إرسال إشعار تليجرام ---
-          confirmReturnBtn.addEventListener('click', async () => {
-            confirmReturnBtn.disabled = true;
-            confirmReturnBtn.textContent = '...جاري الإرجاع';
-            const reason = returnReasonInput.value.trim();
-            try {
-              await fetch(RETURNS_URL, {
-                method: 'POST',
-                headers: { ...headers, "Prefer": "return=minimal" },
-                body: JSON.stringify({ case_number: c.case_number, delegate_name: currentUser.name, reason: reason || null })
-              });
-              await fetch(`${CASES_URL}?case_number=eq.${encodeURIComponent(c.case_number)}`, {
-                method: 'PATCH',
-                headers: { ...headers, "Prefer": "return=minimal" },
-                body: JSON.stringify({ status: 'ready', current_holder: null, picked_up_at: null })
-              });
-
-              // 📲 إرسال إشعار الإرجاع للتليجرام
-              const returnMsg = `↩️ <b>إرجاع حالة للمعمل</b>\n\n` +
-                `🔹 <b>رقم الحالة:</b> ${c.case_number}\n` +
-                `🏥 <b>العيادة:</b> ${c.clinic_name || 'غير محدد'}\n` +
-                `👤 <b>الطبيب:</b> ${c.doctor_name || 'غير محدد'}\n` +
-                `👤 <b>المريض:</b> ${c.patient_name || 'غير محدد'}\n` +
-                `💬 <b>سبب الإرجاع:</b> ${reason || 'لم يتم ذكر سبب'}\n` +
-                `🛵 <b>المندوب:</b> ${currentUser.name}`;
-              sendTelegramNotification(returnMsg);
-
-              await loadCart();
-              await loadDashboardStats();
-            } catch (err) {
-              confirmReturnBtn.disabled = false;
-              confirmReturnBtn.textContent = 'تأكيد الإرجاع';
-              alert("حصلت مشكلة، جرب تاني");
-            }
-          });
-
-          cartList.appendChild(el);
-        });
+        saveCartSnapshot(grouped);
+        renderCart(grouped, { offline: false });
       } catch (err) {
-        cartList.innerHTML = '<div class="empty-state">مشكلة في تحميل السلة</div>';
+        // لا شبكة: نعرض آخر سلة ناجحة محفوظة بدل شاشة فارغة — المندوب يدخل
+        // عيادات في بدرومات ولازم يعرف على الأقل ماذا يحمل (7.5).
+        const snap = readCartSnapshot();
+        if (snap) renderCart(snap.cases, { offline: true, at: snap.at });
+        else cartList.innerHTML = '<div class="empty-state">مشكلة في تحميل السلة</div>';
       }
+    }
+
+    // عرض السلة — مشتركة بين المسار المتصل والنسخة المحفوظة، فلا تتكرر حلقة العرض.
+    // في وضع اللااتصال تُخفى أفعال التسليم/الإرجاع (class=readonly) لأنها لن تصل القاعدة.
+    function renderCart(grouped, opts = {}) {
+      const offline = Boolean(opts.offline);
+      cartCountEl.textContent = grouped.length;
+      if (grouped.length === 0) {
+        cartList.innerHTML = '<div class="empty-state">سلتك فاضية — خد طلبات من تبويب البحث</div>';
+        return;
+      }
+      cartList.innerHTML = '';
+      if (offline) {
+        const note = document.createElement('div');
+        note.className = 'offline-note';
+        const t = opts.at ? new Date(opts.at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : '';
+        note.textContent = '⚠️ معروضة بدون اتصال' + (t ? ' — آخر تحديث ' + t : '');
+        cartList.appendChild(note);
+      }
+      let lastClinic = null;
+      grouped.forEach(c => {
+        if (c.clinic_name !== lastClinic) {
+          lastClinic = c.clinic_name;
+          const header = document.createElement('div');
+          header.className = 'clinic-header';
+          header.textContent = '🏥 ' + (c.clinic_name || '—');
+          cartList.appendChild(header);
+        }
+
+        const el = document.createElement('div');
+        el.className = 'case-item' + (offline ? ' readonly' : '');
+        el.dataset.casenum = c.case_number;
+        // 7.7 — الفلترة صارت تشمل العيادة والطبيب والمريض لا رقم الحالة وحده.
+        el.dataset.search = [c.case_number, c.clinic_name, c.doctor_name, c.patient_name]
+          .filter(Boolean).join(' ').toLowerCase();
+        const preselected = pendingProducts[c.case_number] || null;
+        el.innerHTML = `
+      <div class="case-item-top">
+        <div>
+          <div class="case-num">${escapeHtml(c.case_number)}</div>
+          <div class="case-clinic">${escapeHtml(c.clinic_name || '—')} · ${escapeHtml(c.doctor_name || '—')}<br>${escapeHtml(c.patient_name || '—')}</div>
+          ${buildCaseBadges(c)}
+        </div>
+        <div class="item-actions-right">
+          <div class="checkbox" data-case="${escapeHtml(c.case_number)}" data-clinic="${escapeHtml(c.clinic_name || '')}"></div>
+        </div>
+      </div>
+      <div class="case-products">${[...c.products].map(p => `<span class="chip">${escapeHtml(p)}</span>`).join('')}</div>
+      <div class="product-picker" style="margin-top:8px;">${PRODUCTS.map(p => `<div class="product-chip${preselected === p ? ' active' : ''}" data-product="${escapeHtml(p)}">${escapeHtml(p)}</div>`).join('')}</div>
+      <div class="case-actions">
+        <button class="btn btn-green btn-sm deliver-open-btn">✅ تسليم</button>
+        <button class="btn btn-red btn-sm return-btn">↩️ رجّع</button>
+      </div>
+      <div class="deliver-form">
+        <input class="text-input recipient-input" placeholder="اسم المستلم في العيادة *" maxlength="100">
+        <button class="btn btn-primary btn-sm confirm-deliver-btn" disabled>تأكيد التسليم</button>
+      </div>
+      <div class="return-form">
+        <textarea class="text-input return-reason-input" placeholder="سبب الإرجاع (اختياري)" maxlength="200" style="min-height:60px;"></textarea>
+        <button class="btn btn-red btn-sm confirm-return-btn">تأكيد الإرجاع</button>
+        <div style="height:6px"></div>
+        <button class="btn btn-ghost btn-sm cancel-return-btn">إلغاء</button>
+      </div>
+    `;
+
+        let product = preselected;
+        const form = el.querySelector('.deliver-form');
+        const confirmBtn = el.querySelector('.confirm-deliver-btn');
+        const recipientInput = el.querySelector('.recipient-input');
+        const returnForm = el.querySelector('.return-form');
+        const returnReasonInput = el.querySelector('.return-reason-input');
+        const confirmReturnBtn = el.querySelector('.confirm-return-btn');
+        const cancelReturnBtn = el.querySelector('.cancel-return-btn');
+        const deliverOpenBtn = el.querySelector('.deliver-open-btn');
+        const checkboxEl = el.querySelector('.checkbox');
+
+        deliverOpenBtn.addEventListener('click', () => {
+          form.classList.toggle('show');
+          returnForm.classList.remove('show');
+        });
+
+        el.querySelectorAll('.product-chip').forEach(chip => {
+          chip.addEventListener('click', () => {
+            el.querySelectorAll('.product-chip').forEach(x => x.classList.remove('active'));
+            chip.classList.add('active');
+            product = chip.dataset.product;
+            savePendingProduct(c.case_number, product);
+            checkDeliverEnabled();
+          });
+        });
+        recipientInput.addEventListener('input', checkDeliverEnabled);
+        function checkDeliverEnabled() { confirmBtn.disabled = !(product && recipientInput.value.trim().length > 0); }
+
+        // --- صندوق اختيار الدفعة الجماعية ---
+        checkboxEl.addEventListener('click', () => {
+          const cn = checkboxEl.dataset.case, clinic = checkboxEl.dataset.clinic;
+          if (selectedForDelivery.has(cn)) {
+            selectedForDelivery.delete(cn);
+            checkboxEl.classList.remove('checked');
+            if (selectedForDelivery.size === 0) selectedClinic = null;
+          } else {
+            if (selectedClinic && selectedClinic !== clinic) return;
+            selectedClinic = clinic;
+            selectedForDelivery.add(cn);
+            checkboxEl.classList.add('checked');
+            form.classList.remove('show');
+            returnForm.classList.remove('show');
+          }
+          deliverOpenBtn.disabled = selectedForDelivery.has(cn);
+          applyClinicLock();
+          updateBatchToolbar();
+        });
+
+        // --- تأكيد التسليم مع إرسال إشعار تليجرام ---
+        confirmBtn.addEventListener('click', async () => {
+          confirmBtn.disabled = true;
+          confirmBtn.textContent = '...جاري التسجيل';
+          const recipientName = recipientInput.value.trim();
+          try {
+            await fetch(DELIVERIES_URL, {
+              method: 'POST',
+              headers: { ...headers, "Prefer": "return=minimal" },
+              body: JSON.stringify({ case_number: c.case_number, delivery_stage: product, recipient_name: recipientName, delegate_name: currentUser.name })
+            });
+            await fetch(`${CASES_URL}?case_number=eq.${encodeURIComponent(c.case_number)}`, {
+              method: 'PATCH',
+              headers: { ...headers, "Prefer": "return=minimal" },
+              body: JSON.stringify({ status: 'delivered', current_holder: null, picked_up_at: null })
+            });
+
+            // 📲 إرسال إشعار التسليم للتليجرام
+            const deliverMsg = `📦 <b>تسليم حالة جديد</b>\n\n` +
+              `🔹 <b>رقم الحالة:</b> ${c.case_number}\n` +
+              `🏥 <b>العيادة:</b> ${c.clinic_name || 'غير محدد'}\n` +
+              `👤 <b>الطبيب:</b> ${c.doctor_name || 'غير محدد'}\n` +
+              `👤 <b>المريض:</b> ${c.patient_name || 'غير محدد'}\n` +
+              `🦷 <b>المنتج:</b> ${product}\n` +
+              `🛵 <b>المندوب:</b> ${currentUser.name}\n` +
+              `✍️ <b>المستلم:</b> ${recipientName}`;
+            sendTelegramNotification(deliverMsg);
+
+            clearPendingProduct(c.case_number);
+            await loadCart();
+            await loadDashboardStats();
+          } catch (err) {
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = 'تأكيد التسليم';
+            alert("حصلت مشكلة، جرب تاني");
+          }
+        });
+
+        el.querySelector('.return-btn').addEventListener('click', () => {
+          returnForm.classList.toggle('show');
+          form.classList.remove('show');
+        });
+        cancelReturnBtn.addEventListener('click', () => { returnForm.classList.remove('show'); returnReasonInput.value = ''; });
+
+        // --- تأكيد الإرجاع مع إرسال إشعار تليجرام ---
+        confirmReturnBtn.addEventListener('click', async () => {
+          confirmReturnBtn.disabled = true;
+          confirmReturnBtn.textContent = '...جاري الإرجاع';
+          const reason = returnReasonInput.value.trim();
+          try {
+            await fetch(RETURNS_URL, {
+              method: 'POST',
+              headers: { ...headers, "Prefer": "return=minimal" },
+              body: JSON.stringify({ case_number: c.case_number, delegate_name: currentUser.name, reason: reason || null })
+            });
+            await fetch(`${CASES_URL}?case_number=eq.${encodeURIComponent(c.case_number)}`, {
+              method: 'PATCH',
+              headers: { ...headers, "Prefer": "return=minimal" },
+              body: JSON.stringify({ status: 'ready', current_holder: null, picked_up_at: null })
+            });
+
+            // 📲 إرسال إشعار الإرجاع للتليجرام
+            const returnMsg = `↩️ <b>إرجاع حالة للمعمل</b>\n\n` +
+              `🔹 <b>رقم الحالة:</b> ${c.case_number}\n` +
+              `🏥 <b>العيادة:</b> ${c.clinic_name || 'غير محدد'}\n` +
+              `👤 <b>الطبيب:</b> ${c.doctor_name || 'غير محدد'}\n` +
+              `👤 <b>المريض:</b> ${c.patient_name || 'غير محدد'}\n` +
+              `💬 <b>سبب الإرجاع:</b> ${reason || 'لم يتم ذكر سبب'}\n` +
+              `🛵 <b>المندوب:</b> ${currentUser.name}`;
+            sendTelegramNotification(returnMsg);
+
+            await loadCart();
+            await loadDashboardStats();
+          } catch (err) {
+            confirmReturnBtn.disabled = false;
+            confirmReturnBtn.textContent = 'تأكيد الإرجاع';
+            alert("حصلت مشكلة، جرب تاني");
+          }
+        });
+
+        cartList.appendChild(el);
+      });
     }
 
     // ===== تبويب الحالات المرجعة =====
@@ -1629,29 +1823,176 @@
       }
     }
 
+    // ===== تبويب سجل اليوم (7.4) =====
+    // نفس استعلام عدّاد "تسليم اليوم" الموجود في loadDashboardStats، بـ select أوسع —
+    // فالمندوب كان يرى الرقم ولا يستطيع رؤية مَن هم، ولا دليل في يده إن قال طبيب "لم أستلم".
+    async function loadToday() {
+      todayList.innerHTML = '<div class="empty-state">جاري التحميل...</div>';
+      try {
+        const todayStart = new Date().toISOString().split('T')[0] + 'T00:00:00';
+        const url = `${DELIVERIES_URL}?delegate_name=eq.${encodeURIComponent(currentUser.name)}&delivered_at=gte.${todayStart}&order=delivered_at.desc&select=case_number,clinic_name,patient_name,recipient_name,delivered_at,delivery_stage`;
+        const res = await getJson(url);
+        const rows = await res.json();
+
+        todayCountEl.textContent = rows.length;
+        dashDelivered.textContent = rows.length;
+
+        if (rows.length === 0) {
+          todayList.innerHTML = '<div class="empty-state">مفيش تسليمات النهاردة لسه 📦</div>';
+          return;
+        }
+
+        // ⚠️ عمودا clinic_name و patient_name في `deliveries` فارغان في 218 صفاً من 221
+        // خلال آخر 30 يوماً — مسارا التسليم في التطبيق لا يكتبانهما أصلاً. فالسجل بلا
+        // إثراء كان سيعرض «— · —» في كل سطر تقريباً. نجلب البيانات من `cases` بنفس
+        // نمط loadReturned (inFilterList يحمي من الفاصلة والقوس داخل رقم الحالة).
+        const caseNumbers = [...new Set(rows.map(r => r.case_number))];
+        let caseInfoMap = {};
+        if (caseNumbers.length > 0) {
+          try {
+            const infoRes = await getJson(`${CASES_URL}?case_number=in.(${inFilterList(caseNumbers)})&select=case_number,clinic_name,patient_name`);
+            (await infoRes.json()).forEach(r => { caseInfoMap[r.case_number] = r; });
+          } catch (err) { }   // الإثراء تحسين لا شرط — السجل يُعرض بدونه
+        }
+
+        todayList.innerHTML = '';
+        rows.forEach(r => {
+          const info = caseInfoMap[r.case_number] || {};
+          const timeStr = new Date(r.delivered_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+          const el = document.createElement('div');
+          el.className = 'case-item';
+          el.innerHTML = `
+        <div class="case-item-top">
+          <div>
+            <div class="case-num">${escapeHtml(r.case_number)}</div>
+            <div class="case-clinic">${escapeHtml(r.clinic_name || info.clinic_name || '—')} · ${escapeHtml(r.patient_name || info.patient_name || '—')}</div>
+          </div>
+          <div class="chip">${escapeHtml(timeStr)}</div>
+        </div>
+        <div style="font-size:12px; color:var(--ink-soft); margin-top:4px;">✍️ ${escapeHtml(r.recipient_name || '—')}</div>
+        ${r.delivery_stage ? `<div class="case-products"><span class="chip">${escapeHtml(r.delivery_stage)}</span></div>` : ''}
+      `;
+          todayList.appendChild(el);
+        });
+      } catch (err) {
+        todayList.innerHTML = '<div class="empty-state">مشكلة في تحميل سجل اليوم</div>';
+      }
+    }
+
+    // ===== بلاغ عن مشكلة (7.3) =====
+    // جدول bug_reports كان موجوداً في القاعدة بكل أعماله ومهملاً تماماً — بلاغ 29 أغسطس
+    // وصل شفهياً وبعد ساعات، وهذا الزر يسجّله لحظتها بكامل سياقه التقني.
+    let bugSeverity = 'normal';
+
+    // اسم الشاشة بالعربية كما يراها المندوب — من يقرأ البلاغ في الإدارة يقرأ عربياً.
+    const TAB_LABELS = { available: 'البحث', cart: 'سلتي', returned: 'مرجعة', today: 'اليوم' };
+
+    function currentScreenName() {
+      const active = Object.entries(TABS).find(([, t]) => t.btn.classList.contains('active'));
+      return active ? (TAB_LABELS[active[0]] || active[0]) : 'شاشة الدخول';
+    }
+
+    function showBugMsg(text, isError) {
+      bugMsg.textContent = text;
+      bugMsg.classList.toggle('error', Boolean(isError));
+      bugMsg.classList.add('show');
+    }
+
+    function closeBugPanel() {
+      bugPanel.style.display = 'none';
+      bugDescInput.value = '';
+      bugMsg.classList.remove('show');
+      bugSendBtn.disabled = true;
+    }
+
+    async function sendBugReport() {
+      const description = bugDescInput.value.trim();
+      if (!description) return;                 // description عمود NOT NULL في القاعدة
+      bugSendBtn.disabled = true;
+      bugSendBtn.textContent = 'جاري الإرسال...';
+      try {
+        const res = await fetch(BUG_REPORTS_URL, {
+          method: 'POST',
+          headers: { ...headers, "Prefer": "return=minimal" },
+          body: JSON.stringify({
+            description,
+            severity: bugSeverity,
+            app_version: APP_VERSION,
+            reporter_name: currentUser ? currentUser.name : null,
+            reporter_role: 'مندوب',
+            device_name: (navigator.userAgent || '').slice(0, 200),
+            screen: currentScreenName()
+          })
+        });
+        if (!res.ok) throw new Error('insert failed');
+
+        // الإشعار الفوري هو ما يحوّل الزر من سجل صامت إلى بلاغ يصل الإدارة لحظته.
+        sendTelegramNotification(
+          `🐞 <b>بلاغ من تطبيق المندوب</b>
+` +
+          `👤 <b>المُبلِّغ:</b> ${currentUser ? currentUser.name : '—'}
+` +
+          `⚠️ <b>الخطورة:</b> ${bugSeverity}
+` +
+          `📱 <b>الإصدار:</b> ${APP_VERSION} · <b>الشاشة:</b> ${currentScreenName()}
+` +
+          `💬 ${description}`
+        );
+
+        closeBugPanel();
+        alert('وصل البلاغ ✅ شكراً — هيتراجع في أقرب وقت');
+      } catch (err) {
+        showBugMsg('البلاغ مبعتش — اتأكد من النت وجرب تاني', true);
+      } finally {
+        bugSendBtn.textContent = 'إرسال البلاغ';
+        bugSendBtn.disabled = bugDescInput.value.trim().length === 0;
+      }
+    }
+
+    bugBtn.addEventListener('click', () => {
+      const opening = bugPanel.style.display === 'none';
+      bugPanel.style.display = opening ? 'block' : 'none';
+      if (opening) { bugMsg.classList.remove('show'); bugDescInput.focus(); }
+    });
+    bugCancelBtn.addEventListener('click', closeBugPanel);
+    bugDescInput.addEventListener('input', () => { bugSendBtn.disabled = bugDescInput.value.trim().length === 0; });
+    bugSendBtn.addEventListener('click', sendBugReport);
+    bugSeverityPicker.querySelectorAll('.product-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        bugSeverityPicker.querySelectorAll('.product-chip').forEach(x => x.classList.remove('active'));
+        chip.classList.add('active');
+        bugSeverity = chip.dataset.severity;
+      });
+    });
+
     // ===== التبويبات =====
+    // خريطة بدل سلسلة if/else: كل فرع كان يطفئ التبويبات الأخرى صراحةً، فمع التبويب
+    // الرابع (7.4) كانت الاستدعاءات ستصير 16 وكل إضافة لاحقة تفتح باباً للنسيان.
+    const TABS = {
+      available: { btn: tabAvailable, container: availableContainer },
+      cart: { btn: tabCart, container: cartContainer, load: () => loadCart() },
+      returned: { btn: tabReturned, container: returnedContainer, load: () => loadReturned() },
+      today: { btn: tabToday, container: todayContainer, load: () => loadToday() }
+    };
+
     function switchTab(tab) {
       stopAnyScanner();
-      if (tab === 'available') {
-        tabAvailable.classList.add('active'); tabCart.classList.remove('active'); tabReturned.classList.remove('active');
-        availableContainer.style.display = 'block'; cartContainer.style.display = 'none'; returnedContainer.style.display = 'none';
-        pickupBar.classList.toggle('show', selectedForPickup.size > 0);
-      } else if (tab === 'cart') {
-        tabCart.classList.add('active'); tabAvailable.classList.remove('active'); tabReturned.classList.remove('active');
-        availableContainer.style.display = 'none'; cartContainer.style.display = 'block'; returnedContainer.style.display = 'none';
-        pickupBar.classList.remove('show');
-        loadCart();
-      } else {
-        tabReturned.classList.add('active'); tabAvailable.classList.remove('active'); tabCart.classList.remove('active');
-        availableContainer.style.display = 'none'; cartContainer.style.display = 'none'; returnedContainer.style.display = 'block';
-        pickupBar.classList.remove('show');
-        loadReturned();
-      }
+      const target = TABS[tab] ? tab : 'available';
+      Object.entries(TABS).forEach(([name, t]) => {
+        const active = name === target;
+        t.btn.classList.toggle('active', active);
+        t.container.style.display = active ? 'block' : 'none';
+      });
+      // شريط الالتقاط يخص تبويب البحث وحده.
+      if (target === 'available') pickupBar.classList.toggle('show', selectedForPickup.size > 0);
+      else pickupBar.classList.remove('show');
+      if (TABS[target].load) TABS[target].load();
     }
 
     tabAvailable.addEventListener('click', () => switchTab('available'));
     tabCart.addEventListener('click', () => switchTab('cart'));
     tabReturned.addEventListener('click', () => switchTab('returned'));
+    tabToday.addEventListener('click', () => switchTab('today'));
     loginBtn.addEventListener('click', login);
     pinInput.addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
     logoutBtn.addEventListener('click', logout);
@@ -1667,15 +2008,26 @@
     cartScanBtn.addEventListener('click', () => startScanner('cartReader', (code) => { cartSearchInput.value = code; cartSearchInput.dispatchEvent(new Event('input')); }));
     cartSearchInput.addEventListener('input', e => {
       const term = e.target.value.trim();
+      const needle = term.toLowerCase();
       const items = cartList.querySelectorAll('.case-item');
       items.forEach(item => {
-        if (!term || item.dataset.casenum.includes(term)) {
+        // البحث على data-search (رقم + عيادة + طبيب + مريض)، مع الإبقاء على تمييز
+        // التطابق التام لرقم الحالة لأن ماسح السلة يعتمد عليه.
+        if (!term || (item.dataset.search || item.dataset.casenum).includes(needle)) {
           item.style.display = 'block';
           if (term && item.dataset.casenum === term) {
             item.classList.add('highlight');
             item.scrollIntoView({ behavior: 'smooth', block: 'center' });
           } else { item.classList.remove('highlight'); }
         } else { item.style.display = 'none'; }
+      });
+      // عنوان عيادة لم يبقَ تحته بند ظاهر يصير سطراً معلّقاً بلا معنى.
+      cartList.querySelectorAll('.clinic-header').forEach(header => {
+        let visible = false;
+        for (let n = header.nextElementSibling; n && !n.classList.contains('clinic-header'); n = n.nextElementSibling) {
+          if (n.classList.contains('case-item') && n.style.display !== 'none') { visible = true; break; }
+        }
+        header.style.display = visible ? 'block' : 'none';
       });
     });
 
