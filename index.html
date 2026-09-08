@@ -955,7 +955,7 @@
 
     // ‼️ يُرفَع يدوياً مع كل نشر — لا خطوة بناء تولّده. المندوب يقرأه على شاشة
     // الدخول فيتأكد أن التحديث وصله فعلاً ولم يخدمه الـWebView من الكاش.
-    const APP_VERSION = '1.2.0';
+    const APP_VERSION = '1.2.1';
 
     // كل قراءات الحالة الحيّة تمر من هنا بـ cache:'no-store'. السبب: WebView قد يطبّق
     // كاش heuristic على استجابات GET لو ما بعت السيرفر ترويسة Cache-Control صريحة،
@@ -963,6 +963,27 @@
     function getJson(url) {
       return fetch(url, { headers, cache: 'no-store' });
     }
+
+    // ‼️ كل كتابة تمر من هنا. `fetch` **لا يرمي استثناءً على 4xx/5xx** — يرمي على فشل
+    // الشبكة وحده. فالكتابة المرفوضة (سياسة RLS، عمود NOT NULL، فلتر مشوَّه، خطأ خادم)
+    // كانت تمرّ من تحت `try/catch` بصمت تامّ **والتطبيق يعرض نجاحاً**. أخطر صورة رُصدت:
+    // `POST` إلى `returns` يفشل ثم يمضي الـ`PATCH` ⇒ حالة تعود «جاهزة» بلا أي سجل إرجاع.
+    // ⛔ لا تستدعِ `fetch` مباشرةً لأي كتابة جديدة — استخدم هذه، ورسالة الخطأ تحمل نصّ
+    // الخادم مقتطعاً لأن "حصلت مشكلة" وحدها لا تُميّز عطل شبكة من رفض قاعدة بيانات.
+    async function writeJson(url, method, body) {
+      const res = await fetch(url, {
+        method,
+        headers: { ...headers, "Prefer": "return=minimal" },
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) {
+        let detail = "";
+        try { detail = (await res.text() || "").slice(0, 200); } catch (e) { detail = ""; }
+        throw new Error(`${method} ${res.status} ${detail}`.trim());
+      }
+      return res;
+    }
+
 
     // بناء قائمة فلتر PostgREST من نوع in.(...) بشكل آمن.
     // encodeURIComponent وحده لا يكفي: هو لا يُرمّز الأقواس إطلاقاً ( !'()* تبقى كما هي )،
@@ -1693,17 +1714,32 @@
           confirmBtn.disabled = true;
           confirmBtn.textContent = '...جاري التسجيل';
           const recipientName = recipientInput.value.trim();
+          // لحظة واحدة تُكتب في `cases.delivery_date` وفي `deliveries.delivered_at` معاً، فلا
+          // يفترقان بأجزاء الثانية ويصير الربط بينهما دقيقاً في أي تقرير لاحق (نفس نمط الـERP).
+          const now = new Date().toISOString();
           try {
-            await fetch(DELIVERIES_URL, {
-              method: 'POST',
-              headers: { ...headers, "Prefer": "return=minimal" },
-              body: JSON.stringify({ case_number: c.case_number, delivery_stage: product, recipient_name: recipientName, delegate_name: currentUser.name })
+            // ⚠️ الترتيب مقصود: **تحديث الحالة أولاً، ثم سجل التسليم** — نفس ما استقرّ عليه
+            // الـERP في ADR-024 هناك. بالترتيب المعكوس، فشلُ الـ`PATCH` بعد نجاح الـ`POST`
+            // يترك **سجل تسليم لحالة لم تُسلَّم**، وإعادة المحاولة تُنتج سجلاً ثانياً مكرَّراً.
+            // ⛔ وفشل سجل التسليم بعده لا يعكس التحديث: الحالة سُلِّمت فعلاً (نُبلِّغ ولا نتراجع).
+            await writeJson(`${CASES_URL}?case_number=eq.${encodeURIComponent(c.case_number)}`, 'PATCH', {
+              status: 'delivered',
+              current_holder: null,
+              picked_up_at: null,
+              // ⚠️ كانا ناقصين تماماً: التسليم اليدوي من الـERP يكتبهما بينما تطبيق المندوب لا،
+              // فكانت **كل** تسليمات المندوبين تظهر في الـERP بتاريخ تسليم فارغ (بلاغ 8 سبتمبر 2026).
+              delivery_date: now,
+              recipient_name: recipientName
             });
-            await fetch(`${CASES_URL}?case_number=eq.${encodeURIComponent(c.case_number)}`, {
-              method: 'PATCH',
-              headers: { ...headers, "Prefer": "return=minimal" },
-              body: JSON.stringify({ status: 'delivered', current_holder: null, picked_up_at: null })
-            });
+            try {
+              await writeJson(DELIVERIES_URL, 'POST', {
+                case_number: c.case_number, delivery_stage: product, delivered_at: now,
+                recipient_name: recipientName, delegate_name: currentUser.name
+              });
+            } catch (logErr) {
+              alert(`تم تسجيل تسليم الحالة ${c.case_number}، لكن ما انكتبتش في سجل التسليمات.
+بلّغ المعمل بالرقم ده.`);
+            }
 
             // 📲 إرسال إشعار التسليم للتليجرام
             const deliverMsg = `📦 <b>تسليم حالة جديد</b>\n\n` +
@@ -1722,7 +1758,8 @@
           } catch (err) {
             confirmBtn.disabled = false;
             confirmBtn.textContent = 'تأكيد التسليم';
-            alert("حصلت مشكلة، جرب تاني");
+            // ⛔ الحالة لم تتحرك ولا سجل كُتب (التحديث أول خطوة) — إعادة المحاولة آمنة تماماً.
+            alert(`ما تمّش تسجيل التسليم — الحالة زي ما هي وتقدر تعيد المحاولة.\n\nالتفصيل: ${err.message || err}`);
           }
         });
 
@@ -1738,15 +1775,15 @@
           confirmReturnBtn.textContent = '...جاري الإرجاع';
           const reason = returnReasonInput.value.trim();
           try {
-            await fetch(RETURNS_URL, {
-              method: 'POST',
-              headers: { ...headers, "Prefer": "return=minimal" },
-              body: JSON.stringify({ case_number: c.case_number, delegate_name: currentUser.name, reason: reason || null })
+            // ⚠️ هنا الترتيب معكوس عن التسليم **عن قصد**: سجل الإرجاع يحمل **السبب** الذي
+            // كتبه المندوب ولا يوجد في أي مكان آخر، بينما «رجعت للمعمل» يعرفها المعمل بالعين.
+            // فلو نجح الـ`PATCH` وفشل الـ`POST` ضاع السبب إلى الأبد. نُدرج السجل أولاً، وفشله
+            // يوقف العملية كلها قبل أن تتحرك الحالة — والمندوب يعيد المحاولة بلا أثر جانبي.
+            await writeJson(RETURNS_URL, 'POST', {
+              case_number: c.case_number, delegate_name: currentUser.name, reason: reason || null
             });
-            await fetch(`${CASES_URL}?case_number=eq.${encodeURIComponent(c.case_number)}`, {
-              method: 'PATCH',
-              headers: { ...headers, "Prefer": "return=minimal" },
-              body: JSON.stringify({ status: 'ready', current_holder: null, picked_up_at: null })
+            await writeJson(`${CASES_URL}?case_number=eq.${encodeURIComponent(c.case_number)}`, 'PATCH', {
+              status: 'ready', current_holder: null, picked_up_at: null
             });
 
             // 📲 إرسال إشعار الإرجاع للتليجرام
@@ -1764,7 +1801,10 @@
           } catch (err) {
             confirmReturnBtn.disabled = false;
             confirmReturnBtn.textContent = 'تأكيد الإرجاع';
-            alert("حصلت مشكلة، جرب تاني");
+            // قد يكون سجل الإرجاع دخل والـ`PATCH` هو الذي فشل ⇒ الحالة ما زالت في السلة.
+            // إعادة المحاولة تُنتج سجل إرجاع ثانياً بنفس السبب — مقبول: تكرار في السجل
+            // أهون من حالة ترجع للمعمل بلا سبب مكتوب، والسبب هو كل قيمة هذا السجل.
+            alert(`ما تمّش تسجيل الإرجاع — الحالة لسه في سلتك.\n\nالتفصيل: ${err.message || err}`);
           }
         });
 
@@ -2060,21 +2100,23 @@
       }
       batchConfirmBtn.disabled = true;
       batchConfirmBtnText.textContent = '...جاري التسجيل';
+      const now = new Date().toISOString();
       try {
-        await fetch(DELIVERIES_URL, {
-          method: 'POST',
-          headers: { ...headers, "Prefer": "return=minimal" },
-          body: JSON.stringify(caseNumbers.map(cn => ({
-            case_number: cn, delivery_stage: pendingProducts[cn],
-            recipient_name: recipientName, delegate_name: currentUser.name
-          })))
-        });
+        // نفس ترتيب التسليم الفردي وللسبب نفسه: الحالة أولاً ثم السجل (ADR-C10).
         const inList = inFilterList(caseNumbers);
-        await fetch(`${CASES_URL}?case_number=in.(${inList})`, {
-          method: 'PATCH',
-          headers: { ...headers, "Prefer": "return=minimal" },
-          body: JSON.stringify({ status: 'delivered', current_holder: null, picked_up_at: null })
+        await writeJson(`${CASES_URL}?case_number=in.(${inList})`, 'PATCH', {
+          status: 'delivered', current_holder: null, picked_up_at: null,
+          delivery_date: now, recipient_name: recipientName
         });
+        try {
+          await writeJson(DELIVERIES_URL, 'POST', caseNumbers.map(cn => ({
+            case_number: cn, delivery_stage: pendingProducts[cn], delivered_at: now,
+            recipient_name: recipientName, delegate_name: currentUser.name
+          })));
+        } catch (logErr) {
+          alert(`تم تسجيل تسليم الدفعة، لكن ما انكتبتش في سجل التسليمات.
+بلّغ المعمل بالأرقام: ${caseNumbers.join(', ')}`);
+        }
 
         const batchMsg = `📦 <b>تسليم دفعة حالات</b>\n\n` +
           `🏥 <b>العيادة:</b> ${selectedClinic || 'غير محدد'}\n` +
@@ -2094,7 +2136,9 @@
       } catch (err) {
         batchConfirmBtn.disabled = false;
         batchConfirmBtnText.textContent = 'تأكيد تسليم';
-        alert("حصلت مشكلة، جرب تاني");
+        // ⚠️ الـ`PATCH` الجماعي نداء واحد على القاعدة: إمّا نجح على كل الأرقام أو فشل عليها
+        // كلها — فلا توجد دفعة نصف مُسلَّمة، وإعادة المحاولة آمنة.
+        alert(`ما تمّش تسجيل تسليم الدفعة — الحالات زي ما هي وتقدر تعيد المحاولة.\n\nالتفصيل: ${err.message || err}`);
       }
     }
 
