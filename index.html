@@ -955,7 +955,7 @@
 
     // ‼️ يُرفَع يدوياً مع كل نشر — لا خطوة بناء تولّده. المندوب يقرأه على شاشة
     // الدخول فيتأكد أن التحديث وصله فعلاً ولم يخدمه الـWebView من الكاش.
-    const APP_VERSION = '1.2.2';
+    const APP_VERSION = '1.2.3';
 
     // كل قراءات الحالة الحيّة تمر من هنا بـ cache:'no-store'. السبب: WebView قد يطبّق
     // كاش heuristic على استجابات GET لو ما بعت السيرفر ترويسة Cache-Control صريحة،
@@ -1020,6 +1020,9 @@
     let pendingProducts = JSON.parse(localStorage.getItem('mamelon_pending_products') || '{}');
     let selectedForDelivery = new Set(); // أرقام حالات محدَّدة للتسليم الجماعي، خاص بتبويب السلة فقط
     let selectedClinic = null;           // اسم العيادة المقفولة على التحديد الحالي
+    // تفاصيل كل حالة في السلة (المريض · الطبيب) — تُملأ في renderCart ويقرؤها إشعار تسليم الدفعة
+    // (طلب المستخدم 15 أكتوبر 2026: رسالة الدفعة كانت أرقاماً فقط بلا مريض ولا طبيب ولا منتج).
+    let cartCaseInfo = new Map();
 
     function savePendingProduct(caseNumber, product) {
       pendingProducts[caseNumber] = product;
@@ -1628,6 +1631,7 @@
         const el = document.createElement('div');
         el.className = 'case-item' + (offline ? ' readonly' : '');
         el.dataset.casenum = c.case_number;
+        cartCaseInfo.set(c.case_number, { patient: c.patient_name, doctor: c.doctor_name });
         // 7.7 — الفلترة صارت تشمل العيادة والطبيب والمريض لا رقم الحالة وحده.
         el.dataset.search = [c.case_number, c.clinic_name, c.doctor_name, c.patient_name]
           .filter(Boolean).join(' ').toLowerCase();
@@ -2118,12 +2122,19 @@
 بلّغ المعمل بالأرقام: ${caseNumbers.join(', ')}`);
         }
 
+        // سطر لكل حالة: الرقم · المريض · الطبيب · المنتج المختار عند التسليم (BR-C03) — كالرسالة الفردية.
+        const NUMS = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩','⑪','⑫','⑬','⑭','⑮','⑯','⑰','⑱','⑲','⑳'];
+        const caseLines = caseNumbers.map((cn, i) => {
+          const info = cartCaseInfo.get(cn) || {};
+          return `${NUMS[i] || (i + 1) + '.'} <b>${escapeHtml(cn)}</b> · 👤 <b>المريض:</b> ${escapeHtml(info.patient || 'غير محدد')}` +
+            ` · 👨‍⚕️ <b>الطبيب:</b> ${escapeHtml(info.doctor || 'غير محدد')} · 🦷 ${escapeHtml(pendingProducts[cn] || '—')}`;
+        }).join('\n');
         const batchMsg = `📦 <b>تسليم دفعة حالات</b>\n\n` +
-          `🏥 <b>العيادة:</b> ${selectedClinic || 'غير محدد'}\n` +
-          `🔹 <b>عدد الحالات:</b> ${caseNumbers.length}\n` +
-          `🔸 <b>الأرقام:</b> ${caseNumbers.join(', ')}\n` +
-          `🛵 <b>المندوب:</b> ${currentUser.name}\n` +
-          `✍️ <b>المستلم:</b> ${recipientName}`;
+          `🏥 <b>العيادة:</b> ${escapeHtml(selectedClinic || 'غير محدد')}\n` +
+          `🔹 <b>عدد الحالات:</b> ${caseNumbers.length}\n\n` +
+          `${caseLines}\n\n` +
+          `🛵 <b>المندوب:</b> ${escapeHtml(currentUser.name)}\n` +
+          `✍️ <b>المستلم:</b> ${escapeHtml(recipientName)}`;
         sendTelegramNotification(batchMsg);
 
         caseNumbers.forEach(clearPendingProduct);
